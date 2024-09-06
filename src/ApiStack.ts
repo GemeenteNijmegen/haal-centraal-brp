@@ -1,10 +1,11 @@
-import { Stack, StackProps } from 'aws-cdk-lib';
-import { ApiKey, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
+import { Duration, Stack, StackProps } from 'aws-cdk-lib';
+import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
 import { DnsConstruct } from './constructs/DnsConstruct';
+import { PersonenFunction } from './personen/personen-function';
 
 export class ApiStack extends Stack {
   readonly subdomain: DnsConstruct;
@@ -20,6 +21,14 @@ export class ApiStack extends Stack {
     const cert = this.cert();
     const api = this.api(cert);
     this.addDnsRecords(api);
+
+    const resource = api.root.addResource('personen');
+    const personenFunction = this.personenFunction();
+    const lambdaIntegration = new LambdaIntegration(personenFunction);
+    resource.addMethod('GET', lambdaIntegration, {
+      apiKeyRequired: true,
+    });
+    resource.addMethod('POST', lambdaIntegration, { apiKeyRequired: true });
   }
 
   private addDnsRecords(api: RestApi) {
@@ -27,6 +36,16 @@ export class ApiStack extends Stack {
       zone: this.subdomain.hostedzone,
       target: RecordTarget.fromAlias(new ApiGateway(api)),
     });
+  }
+
+  private personenFunction() {
+    const personenLambda = new PersonenFunction(this, 'personenfunction', {
+      timeout: Duration.seconds(30),
+      environment: {
+        // Env
+      },
+    });
+    return personenLambda;
   }
 
   private api(cert: Certificate) {
