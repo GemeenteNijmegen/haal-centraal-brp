@@ -2,6 +2,39 @@ import { Bsn, AWS } from '@gemeentenijmegen/utils';
 
 export async function handler (event: any, _context: any):Promise<any> {
   console.log(event);
+
+  console.log('parse: ');
+  const request = JSON.parse(event.body);
+  console.log(request);
+
+  console.log('read: ');
+  console.log(request.type);
+
+  switch ( request.type ) {
+    case 'ZoekMetGeslachtsnaamEnGeboortedatum':
+      await zoekMetGeslachtsnaamEnGeboortedatum();
+      break;
+    case 'ZoekMetNaamEnGemeenteVanInschrijving':
+      await zoekMetNaamEnGemeenteVanInschrijving();
+      break;
+    case 'RaadpleegMetBurgerservicenummer':
+      return raadpleegMetBurgerservicenummer(request);
+    case 'ZoekMetPostcodeEnHuisnummer':
+      await zoekMetPostcodeEnHuisnummer();
+      break;
+    case 'ZoekMetStraatHuisnummerEnGemeenteVanInschrijving':
+      await zoekMetStraatHuisnummerEnGemeenteVanInschrijving();
+      break;
+    case 'ZoekMetNummeraanduidingIdentificatie':
+      await zoekMetNummeraanduidingIdentificatie();
+      break;
+    case 'ZoekMetAdresseerbaarObjectIdentificatie':
+      await zoekMetAdresseerbaarObjectIdentificatie();
+      break;
+    default:
+      console.log('Unknown Request Type');
+      return JSON.stringify('Unknown Request Type');
+  }
 };
 
 export async function callHaalCentraal(content: string) {
@@ -63,17 +96,22 @@ export async function zoekMetNaamEnGemeenteVanInschrijving() {
 
 }
 
-export async function raadpleegMetBurgerservicenummer() {
+export async function raadpleegMetBurgerservicenummer(request: any) {
 
-  const aBsn = new Bsn('12345678');
+  const bsnList: string[] = [];
+
+  request.burgerservicenummer.forEach((bsn: string) => {
+    const aBsn = new Bsn(bsn);
+    bsnList.push(aBsn.bsn);
+  });
 
   const content = {
-    type: 'RaadpleegMetBurgerservicenummer',
-    fields: ['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    burgerservicenummer: [aBsn.bsn],
+    type: request.type, //'RaadpleegMetBurgerservicenummer',
+    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
+    burgerservicenummer: bsnList,
   };
 
-  await callHaalCentraal(JSON.stringify(content) );
+  return callHaalCentraal(JSON.stringify(content) );
 
 }
 
