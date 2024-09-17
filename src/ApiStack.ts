@@ -1,4 +1,4 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
+import { aws_secretsmanager, Duration, Stack, StackProps } from 'aws-cdk-lib';
 import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
@@ -6,6 +6,7 @@ import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
+import { Statics } from './Statics';
 
 export class ApiStack extends Stack {
   readonly subdomain: DnsConstruct;
@@ -39,12 +40,15 @@ export class ApiStack extends Stack {
   }
 
   private personenFunction() {
+    const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
+
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
       environment: {
-        // Env
+        BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
       },
     });
+    brpHaalCentraalApiKeySecret.grantRead(personenLambda);
     return personenLambda;
   }
 

@@ -39,7 +39,7 @@ export async function handler (event: any, _context: any):Promise<any> {
 
 export async function callHaalCentraal(content: string) {
   const endpoint = 'https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp';
-  const apiKey = await AWS.getSecret(process.env.BRP_API_KEY!);
+  const apiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
 
   const response = await fetch(endpoint + '/personen',
     {
