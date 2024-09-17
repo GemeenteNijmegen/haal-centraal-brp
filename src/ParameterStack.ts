@@ -1,6 +1,7 @@
-import { Stack, StackProps } from 'aws-cdk-lib';
+import { Stack, StackProps, aws_secretsmanager as SecretsManager } from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
+import { Statics } from './Statics';
 
 export class ParameterStack extends Stack {
 
@@ -10,6 +11,11 @@ export class ParameterStack extends Stack {
     new StringParameter(this, 'dummy', {
       stringValue: '-',
       parameterName: '/haalcentraalbrp/dummy',
+    });
+
+    new SecretsManager.Secret(this, 'haalcentraal_secret_1', {
+      secretName: Statics.haalCentraalApiKeySecret,
+      description: 'BRP Api key haal centraal',
     });
 
   }
