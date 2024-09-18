@@ -56,7 +56,11 @@ export async function callHaalCentraal(content: string) {
   if ((await data).personen[0].overlijden) {
     throw new Error('Persoon lijkt overleden');
   } else if ((await data).personen[0]) {
-    return (await data).personen[0];
+    return {
+      statusCode: 201,
+      body: JSON.stringify((await data).personen[0]),
+      headers: { 'Content-Type': 'application/json' },
+    };
   }
 }
 
