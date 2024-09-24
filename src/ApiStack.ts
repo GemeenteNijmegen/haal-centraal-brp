@@ -88,8 +88,8 @@ export class ApiStack extends Stack {
   private mtls() {
     const truststore = new aws_s3.Bucket(this, 'truststore');
 
-    new aws_s3_deployment.BucketDeployment(this, 'trustore-bucket-deployment', {
-      sources: [aws_s3_deployment.Source.asset('./src/truststore/')],
+    new aws_s3_deployment.BucketDeployment(this, 'bucket-deployment', {
+      sources: [aws_s3_deployment.Source.asset('./src/certs/')],
       destinationBucket: truststore,
     });
 
