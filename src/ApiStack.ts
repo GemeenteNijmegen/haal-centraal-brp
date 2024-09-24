@@ -1,5 +1,5 @@
-import { aws_secretsmanager, Duration, Stack, StackProps } from 'aws-cdk-lib';
-import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
+import { aws_secretsmanager, Duration, Stack, StackProps, aws_s3 } from 'aws-cdk-lib';
+import { ApiKey, LambdaIntegration, MTLSConfig, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
@@ -20,7 +20,8 @@ export class ApiStack extends Stack {
     });
 
     const cert = this.cert();
-    const api = this.api(cert);
+    const mtls = this.mtls();
+    const api = this.api(cert, mtls);
     this.addDnsRecords(api);
 
     const resource = api.root.addResource('personen');
@@ -52,13 +53,14 @@ export class ApiStack extends Stack {
     return personenLambda;
   }
 
-  private api(cert: Certificate) {
+  private api(cert: Certificate, mtls: MTLSConfig) {
     const api = new RestApi(this, 'api', {
       description: 'API Gateway for Haal Centraal BRP',
       domainName: {
         certificate: cert,
         domainName: this.subdomain.hostedzone.zoneName,
         securityPolicy: SecurityPolicy.TLS_1_2,
+        mtls: mtls,
       },
     });
 
@@ -82,5 +84,15 @@ export class ApiStack extends Stack {
       validation: CertificateValidation.fromDns(this.subdomain.hostedzone),
     });
     return cert;
+  }
+
+  private mtls() {
+    const truststore = new aws_s3.Bucket(this, 'truststore');
+
+    const mtls = {
+      bucket: truststore,
+      key: 'truststore.pem',
+    };
+    return mtls;
   }
 }
