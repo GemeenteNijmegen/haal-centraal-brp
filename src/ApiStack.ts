@@ -1,4 +1,4 @@
-import { aws_secretsmanager, Duration, Stack, StackProps, aws_s3 } from 'aws-cdk-lib';
+import { aws_secretsmanager, Duration, Stack, StackProps, aws_s3, aws_s3_deployment } from 'aws-cdk-lib';
 import { ApiKey, LambdaIntegration, MTLSConfig, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
@@ -88,6 +88,11 @@ export class ApiStack extends Stack {
 
   private mtls() {
     const truststore = new aws_s3.Bucket(this, 'truststore');
+
+    new aws_s3_deployment.BucketDeployment(this, 'trustore-deployment', {
+      sources: [aws_s3_deployment.Source.asset('./src/truststore/')],
+      destinationBucket: truststore,
+    });
 
     const mtls = {
       bucket: truststore,
