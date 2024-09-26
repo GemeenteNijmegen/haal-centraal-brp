@@ -35,9 +35,6 @@ export class ApiStack extends Stack {
     resource.addMethod('POST', lambdaIntegration, {
       apiKeyRequired: true,
       authorizer: authToken,
-      requestParameters: {
-        'integration.request.header.X-Client-Cert-Sub': true,
-      },
     });
   }
 
