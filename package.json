@@ -4,6 +4,8 @@
     "build": "npx projen build",
     "bump": "npx projen bump",
     "bundle": "npx projen bundle",
+    "bundle:authorizer/authorizer.lambda": "npx projen bundle:authorizer/authorizer.lambda",
+    "bundle:authorizer/authorizer.lambda:watch": "npx projen bundle:authorizer/authorizer.lambda:watch",
     "bundle:personen/personen.lambda": "npx projen bundle:personen/personen.lambda",
     "bundle:personen/personen.lambda:watch": "npx projen bundle:personen/personen.lambda:watch",
     "clobber": "npx projen clobber",

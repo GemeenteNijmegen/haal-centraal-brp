@@ -58,6 +58,7 @@ junit.xml
 /cdk.out/
 .cdk.staging/
 .parcel-cache/
+!/src/authorizer/authorizer-function.ts
 !/src/personen/personen-function.ts
 !/.github/workflows/emergency.yml
 !/.github/workflows/auto-merge.yml

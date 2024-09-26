@@ -147,6 +147,7 @@
         "devDependencies": [
           "**/test/**",
           "**/build-tools/**",
+          "src/authorizer/authorizer.lambda.ts",
           "src/personen/personen.lambda.ts"
         ],
         "optionalDependencies": false,
