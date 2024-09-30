@@ -1,10 +1,10 @@
 import { aws_secretsmanager, Duration, Stack, StackProps, aws_s3, aws_s3_deployment } from 'aws-cdk-lib';
-import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy, TokenAuthorizer } from 'aws-cdk-lib/aws-apigateway';
+import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
-import { AuthorizerFunction } from './authorizer/authorizer-function';
+//import { AuthorizerFunction } from './authorizer/authorizer-function';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
 import { Statics } from './Statics';
@@ -26,15 +26,15 @@ export class ApiStack extends Stack {
 
     const resource = api.root.addResource('personen');
     const personenFunction = this.personenFunction();
-    const authToken = this.authorizeToken();
+    //const authToken = this.authorizeToken();
     const lambdaIntegration = new LambdaIntegration(personenFunction);
     resource.addMethod('GET', lambdaIntegration, {
       apiKeyRequired: true,
-      authorizer: authToken,
+      //authorizer: authToken,
     });
     resource.addMethod('POST', lambdaIntegration, {
       apiKeyRequired: true,
-      authorizer: authToken,
+      //authorizer: authToken,
     });
   }
 
@@ -58,16 +58,16 @@ export class ApiStack extends Stack {
     return personenLambda;
   }
 
-  private authorizeToken() {
-    const authorizerLambda = new AuthorizerFunction(this, 'authorizerfunction', {});
+  // private authorizeToken() {
+  //   const authorizerLambda = new AuthorizerFunction(this, 'authorizerfunction', {});
 
-    const authToken = new TokenAuthorizer(this, 'requestauthorizer', {
-      handler: authorizerLambda,
-      identitySource: 'method.request.header.AuthorizeToken',
-    });
+  //   const authToken = new TokenAuthorizer(this, 'requestauthorizer', {
+  //     handler: authorizerLambda,
+  //     identitySource: 'method.request.header.AuthorizeToken',
+  //   });
 
-    return authToken;
-  }
+  //   return authToken;
+  // }
 
   private api(cert: Certificate) {
     const truststore = new aws_s3.Bucket(this, 'truststore-certs-bucket-api');
@@ -83,10 +83,10 @@ export class ApiStack extends Stack {
         certificate: cert,
         domainName: this.subdomain.hostedzone.zoneName,
         securityPolicy: SecurityPolicy.TLS_1_2,
-        mtls: {
-          bucket: truststore,
-          key: 'truststore.pem',
-        },
+        // mtls: {
+        //   bucket: truststore,
+        //   key: 'truststore.pem',
+        // },
       },
     });
 
