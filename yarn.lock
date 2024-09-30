@@ -1206,11 +1206,6 @@
     "@aws-sdk/client-ssm" "^3.637.0"
     "@aws-sdk/s3-request-presigner" "^3.637.0"
 
-"@humanwhocodes/config-array@^0.11.14":
-  version "0.11.14"
-  resolved "https://registry.yarnpkg.com/@humanwhocodes/config-array/-/config-array-0.11.14.tgz#d78e481a039f7566ecc9660b4ea7fe6b1fec442b"
-  integrity sha512-3T8LkOmg45BV5FICb15QQMsyUSWrQ8AygVfC7ZG32zOalnqrilm018ZVCw0eapXux8FtA33q8PSRSstjee3jSg==
-
 "@humanwhocodes/config-array@^0.13.0":
   version "0.13.0"
   resolved "https://registry.yarnpkg.com/@humanwhocodes/config-array/-/config-array-0.13.0.tgz#fb907624df3256d04b9aa2df50d7aa97ec648748"
@@ -1412,7 +1407,7 @@
   dependencies:
     "@jest/test-result" "^29.7.0"
     graceful-fs "^4.2.9"
-    jest-haste-map "^29.https://github.com/GemeenteNijmegen/haal-centraal-brp/pull/11/conflict?name=yarn.lock&ancestor_oid=55301276df612bb9c2a91c43b412f69a696e6fd7&base_oid=deb3aed78e88ff3cb9cdbfc4e5182604216b3287&head_oid=41b1689f2f6de763e37ba19506530cf667fdfe927.0"
+    jest-haste-map "^29.7.0"
     slash "^3.0.0"
 
 "@jest/transform@^29.7.0":
@@ -4498,7 +4493,7 @@ jest-get-type@^29.6.3:
   resolved "https://registry.yarnpkg.com/jest-get-type/-/jest-get-type-29.6.3.tgz#36f499fdcea197c1045a127319c0481723908fd1"
   integrity sha512-zrteXnqYxfQh7l5FHyL38jL39di8H8rHoecLH3JNxH3BwOrBsNeabdap5e0I23lD4HHI8W5VFBZqG4Eaq5LNcw==
 
-jest-haste-map@^29.7.0:
+jest-haste-map@^29.7.0, "jest-haste-map@^29.https://github.com/GemeenteNijmegen/haal-centraal-brp/pull/11/conflict?name=yarn.lock&ancestor_oid=55301276df612bb9c2a91c43b412f69a696e6fd7&base_oid=deb3aed78e88ff3cb9cdbfc4e5182604216b3287&head_oid=41b1689f2f6de763e37ba19506530cf667fdfe927.0":
   version "29.7.0"
   resolved "https://registry.yarnpkg.com/jest-haste-map/-/jest-haste-map-29.7.0.tgz#3c2396524482f5a0506376e6c858c3bbcc17b104"
   integrity sha512-fP8u2pyfqx0K1rGn1R9pyE0/KTn+G7PxktWidOBTqFPLYX0b9ksaMFkhK5vrS3DVun09pckLdlx90QthlW7AmA==
