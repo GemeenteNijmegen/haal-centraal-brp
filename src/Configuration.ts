@@ -49,6 +49,11 @@ const EnvironmentConfigurations: {[key:string]: Configuration} = {
     buildEnvironment: Statics.gnBuildEnvironment,
     deploymentEnvironment: Statics.gnHaalCentraalBrpDevEnvironment,
   },
+  acceptance: {
+    branch: 'acceptance',
+    buildEnvironment: Statics.gnBuildEnvironment,
+    deploymentEnvironment: Statics.gnHaalCentraalBrpAccpEnvironment,
+  },
 };
 
 /**
