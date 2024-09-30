@@ -44,7 +44,51 @@
     },
     "bundle": {
       "name": "bundle",
-      "description": "Prepare assets"
+      "description": "Prepare assets",
+      "steps": [
+        {
+          "spawn": "bundle:authorizer/authorizer.lambda"
+        },
+        {
+          "spawn": "bundle:personen/personen.lambda"
+        }
+      ]
+    },
+    "bundle:authorizer/authorizer.lambda": {
+      "name": "bundle:authorizer/authorizer.lambda",
+      "description": "Create a JavaScript bundle from src/authorizer/authorizer.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/authorizer/authorizer.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/authorizer/authorizer.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+        }
+      ]
+    },
+    "bundle:authorizer/authorizer.lambda:watch": {
+      "name": "bundle:authorizer/authorizer.lambda:watch",
+      "description": "Continuously update the JavaScript bundle from src/authorizer/authorizer.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/authorizer/authorizer.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/authorizer/authorizer.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
+        }
+      ]
+    },
+    "bundle:personen/personen.lambda": {
+      "name": "bundle:personen/personen.lambda",
+      "description": "Create a JavaScript bundle from src/personen/personen.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+        }
+      ]
+    },
+    "bundle:personen/personen.lambda:watch": {
+      "name": "bundle:personen/personen.lambda:watch",
+      "description": "Continuously update the JavaScript bundle from src/personen/personen.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
+        }
+      ]
     },
     "clobber": {
       "name": "clobber",
@@ -279,13 +323,13 @@
       },
       "steps": [
         {
-          "exec": "npx npm-check-updates@16 --upgrade --target=minor --peer --dep=dev,peer,prod,optional --filter=@gemeentenijmegen/projen-project-type,@types/jest,esbuild,eslint-import-resolver-typescript,eslint-plugin-import,jest,projen,ts-jest,ts-node,typescript,@gemeentenijmegen/aws-constructs"
+          "exec": "npx npm-check-updates@16 --upgrade --target=minor --peer --dep=dev,peer,prod,optional --filter=@gemeentenijmegen/projen-project-type,@types/jest,esbuild,eslint-import-resolver-typescript,eslint-plugin-import,jest,projen,ts-jest,ts-node,typescript,@gemeentenijmegen/aws-constructs,@gemeentenijmegen/utils"
         },
         {
           "exec": "yarn install --check-files"
         },
         {
-          "exec": "yarn upgrade @gemeentenijmegen/projen-project-type @types/jest @types/node @typescript-eslint/eslint-plugin @typescript-eslint/parser aws-cdk commit-and-tag-version esbuild eslint-import-resolver-typescript eslint-plugin-import eslint jest jest-junit projen ts-jest ts-node typescript @gemeentenijmegen/aws-constructs aws-cdk-lib constructs"
+          "exec": "yarn upgrade @gemeentenijmegen/projen-project-type @types/jest @types/node @typescript-eslint/eslint-plugin @typescript-eslint/parser aws-cdk commit-and-tag-version esbuild eslint-import-resolver-typescript eslint-plugin-import eslint jest jest-junit projen ts-jest ts-node typescript @gemeentenijmegen/aws-constructs @gemeentenijmegen/utils aws-cdk-lib constructs"
         },
         {
           "exec": "npx projen"
