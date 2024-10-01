@@ -89,7 +89,7 @@ export class ApiStack extends Stack {
         },
       },
       deployOptions: {
-        loggingLevel: MethodLoggingLevel.ERROR,
+        loggingLevel: MethodLoggingLevel.INFO,
       },
     });
 
