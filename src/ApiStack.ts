@@ -1,5 +1,5 @@
 import { aws_secretsmanager, Duration, Stack, StackProps, aws_s3, aws_s3_deployment } from 'aws-cdk-lib';
-import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
+import { ApiKey, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
@@ -83,10 +83,13 @@ export class ApiStack extends Stack {
         certificate: cert,
         domainName: this.subdomain.hostedzone.zoneName,
         securityPolicy: SecurityPolicy.TLS_1_2,
-        // mtls: {
-        //   bucket: truststore,
-        //   key: 'truststore.pem',
-        // },
+        mtls: {
+          bucket: truststore,
+          key: 'truststore.pem',
+        },
+      },
+      deployOptions: {
+        loggingLevel: MethodLoggingLevel.ERROR,
       },
     });
 
