@@ -56,11 +56,11 @@ export async function callHaalCentraal(content: string) {
   console.log(JSON.stringify(data));
 
   if ((await data).personen[0].overlijden) {
-    throw new Error('Persoon lijkt overleden');
-  } else if ((await data).personen[0]) {
+    throw new Error('Persoon lijkt overleden'); //TODO change overlijden check
+  } else if ((await data)) {
     return {
       statusCode: 201,
-      body: JSON.stringify((await data).personen[0]),
+      body: JSON.stringify((await data)),
       headers: { 'Content-Type': 'application/json' },
     };
   }
