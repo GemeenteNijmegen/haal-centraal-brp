@@ -53,7 +53,7 @@ export async function callHaalCentraal(content: string) {
 
   const data = await response.json() as Promise<any>;
 
-  console.log(data);
+  console.log(JSON.stringify(data));
 
   if ((await data).personen[0].overlijden) {
     throw new Error('Persoon lijkt overleden');
