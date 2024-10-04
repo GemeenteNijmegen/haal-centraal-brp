@@ -51,19 +51,16 @@ export async function callHaalCentraal(content: string) {
       body: content,
     });
 
-  const data = await response.json() as Promise<any>;
+  const data = await response.json();
 
   console.log(JSON.stringify(data));
 
-  if ((await data).personen[0].overlijden) {
-    throw new Error('Persoon lijkt overleden'); //TODO change overlijden check
-  } else if ((await data)) {
-    return {
-      statusCode: 201,
-      body: JSON.stringify((await data)),
-      headers: { 'Content-Type': 'application/json' },
-    };
-  }
+  return {
+    statusCode: response.status,
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
+  };
+
 }
 
 export async function zoekMetGeslachtsnaamEnGeboortedatum(request: any) {
