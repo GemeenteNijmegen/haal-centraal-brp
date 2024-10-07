@@ -1,4 +1,4 @@
-import { Stack, StackProps, aws_s3, aws_s3_deployment } from 'aws-cdk-lib';
+import { Stack, StackProps, aws_iam, aws_s3, aws_s3_deployment } from 'aws-cdk-lib';
 import { ApiKey, HttpIntegration, MethodLoggingLevel, RestApi, SecurityPolicy, TokenAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
@@ -27,7 +27,7 @@ export class ApiStack extends Stack {
 
     const resource = api.root.addResource('personen');
     //const personenFunction = this.personenFunction();
-    const authToken = this.authorizeToken();
+    const authToken = this.authorizeToken(api);
 
     //const lambdaIntegration = new LambdaIntegration(personenFunction);
     // resource.addMethod('GET', lambdaIntegration, {
@@ -67,8 +67,14 @@ export class ApiStack extends Stack {
   //   return personenLambda;
   // }
 
-  private authorizeToken() {
+  private authorizeToken(api: RestApi) {
     const authorizerLambda = new AuthorizerFunction(this, 'authorizerfunction', {});
+
+    authorizerLambda.addPermission('ApiGatewayInvokeLambda', {
+      principal: new aws_iam.ServicePrincipal('apigateway.amazonaws.com'),
+      sourceArn: api.arnForExecuteApi(),
+      action: 'lambda:InvokeFunction',
+    });
 
     const authToken = new TokenAuthorizer(this, 'requestauthorizer', {
       handler: authorizerLambda,
