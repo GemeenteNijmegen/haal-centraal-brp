@@ -78,7 +78,7 @@ export class ApiStack extends Stack {
 
     const authToken = new TokenAuthorizer(this, 'requestauthorizer', {
       handler: authorizerLambda,
-      identitySource: 'method.request.header.AuthorizeToken',
+      // identitySource: 'method.request.header.AuthorizeToken',
     });
 
     return authToken;
