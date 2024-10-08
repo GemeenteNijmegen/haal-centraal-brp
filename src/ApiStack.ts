@@ -40,7 +40,7 @@ export class ApiStack extends Stack {
     // });
 
     const httpIntegration = new HttpIntegration('https://webhook.site/a80e0e0c-9951-413a-8897-f7cd178e1710');
-    resource.addMethod('ANY', httpIntegration, {
+    resource.addMethod('POST', httpIntegration, {
       apiKeyRequired: true,
       authorizer: authToken,
     });
