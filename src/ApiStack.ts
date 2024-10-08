@@ -1,5 +1,5 @@
 import { Stack, StackProps, aws_iam, aws_s3, aws_s3_deployment } from 'aws-cdk-lib';
-import { ApiKey, HttpIntegration, MethodLoggingLevel, RestApi, SecurityPolicy, TokenAuthorizer } from 'aws-cdk-lib/aws-apigateway';
+import { ApiKey, HttpIntegration, IdentitySource, MethodLoggingLevel, RestApi, SecurityPolicy, TokenAuthorizer } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
@@ -78,7 +78,7 @@ export class ApiStack extends Stack {
 
     const authToken = new TokenAuthorizer(this, 'requestauthorizer', {
       handler: authorizerLambda,
-      // identitySource: 'method.request.header.AuthorizeToken',
+      identitySource: IdentitySource.header('Authorization'),
     });
 
     return authToken;
