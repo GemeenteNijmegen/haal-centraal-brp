@@ -2,7 +2,7 @@
 export async function handler(event: any):Promise<any> {
 
   // Step 1: Extract the token from the Authorization header
-  const token = event.headers.Authorization || event.headers.authorization;
+  const token = event.authorizationToken;
 
   // Log the received token for debugging purposes
   console.log('Received Token:', token);
