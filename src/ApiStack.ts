@@ -68,7 +68,7 @@ export class ApiStack extends Stack {
   // }
 
   private authorizeToken(api: RestApi) {
-    const authorizerLambda = new AuthorizerFunction(this, 'authorizerfunction', {});
+    const authorizerLambda = new AuthorizerFunction(this, 'authorizerfunction');
 
     authorizerLambda.addPermission('ApiGatewayInvokeLambda', {
       principal: new aws_iam.ServicePrincipal('apigateway.amazonaws.com'),
