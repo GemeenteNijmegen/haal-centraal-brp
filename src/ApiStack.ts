@@ -1,14 +1,12 @@
-import { Stack, StackProps, aws_iam, aws_s3, aws_s3_deployment } from 'aws-cdk-lib';
-import { ApiKey, HttpIntegration, IdentitySource, MethodLoggingLevel, RestApi, SecurityPolicy, TokenAuthorizer } from 'aws-cdk-lib/aws-apigateway';
+import { Duration, Stack, StackProps, aws_s3, aws_s3_deployment, aws_secretsmanager } from 'aws-cdk-lib';
+import { ApiKey, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
 import { Construct } from 'constructs';
-//import { AuthorizerFunction } from './authorizer/authorizer-function';
-import { AuthorizerFunction } from './authorizer/authorizer-function';
 import { DnsConstruct } from './constructs/DnsConstruct';
-// import { PersonenFunction } from './personen/personen-function';
-// import { Statics } from './Statics';
+import { PersonenFunction } from './personen/personen-function';
+import { Statics } from './Statics';
 
 export class ApiStack extends Stack {
   readonly subdomain: DnsConstruct;
@@ -26,24 +24,24 @@ export class ApiStack extends Stack {
     this.addDnsRecords(api);
 
     const resource = api.root.addResource('personen');
-    //const personenFunction = this.personenFunction();
-    const authToken = this.authorizeToken(api);
+    const personenFunction = this.personenFunction();
+    // const authToken = this.authorizeToken(api);
 
-    //const lambdaIntegration = new LambdaIntegration(personenFunction);
+    const lambdaIntegration = new LambdaIntegration(personenFunction);
     // resource.addMethod('GET', lambdaIntegration, {
     //   apiKeyRequired: true,
     //   //authorizer: authToken,
     // });
-    // resource.addMethod('POST', lambdaIntegration, {
-    //   apiKeyRequired: true,
-    //   //authorizer: authToken,
-    // });
-
-    const httpIntegration = new HttpIntegration('https://webhook.site/a80e0e0c-9951-413a-8897-f7cd178e1710');
-    resource.addMethod('POST', httpIntegration, {
+    resource.addMethod('POST', lambdaIntegration, {
       apiKeyRequired: true,
-      authorizer: authToken,
+      //authorizer: authToken,
     });
+
+    // const httpIntegration = new HttpIntegration('https://webhook.site/a80e0e0c-9951-413a-8897-f7cd178e1710');
+    // resource.addMethod('POST', httpIntegration, {
+    //   apiKeyRequired: true,
+    //   authorizer: authToken,
+    // });
 
   }
 
@@ -54,35 +52,35 @@ export class ApiStack extends Stack {
     });
   }
 
-  // private personenFunction() {
-  //   const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
+  private personenFunction() {
+    const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
 
-  //   const personenLambda = new PersonenFunction(this, 'personenfunction', {
-  //     timeout: Duration.seconds(30),
-  //     environment: {
-  //       BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
-  //     },
-  //   });
-  //   brpHaalCentraalApiKeySecret.grantRead(personenLambda);
-  //   return personenLambda;
-  // }
-
-  private authorizeToken(api: RestApi) {
-    const authorizerLambda = new AuthorizerFunction(this, 'authorizerfunction');
-
-    authorizerLambda.addPermission('ApiGatewayInvokeLambda', {
-      principal: new aws_iam.ServicePrincipal('apigateway.amazonaws.com'),
-      sourceArn: api.arnForExecuteApi(),
-      action: 'lambda:InvokeFunction',
+    const personenLambda = new PersonenFunction(this, 'personenfunction', {
+      timeout: Duration.seconds(30),
+      environment: {
+        BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
+      },
     });
-
-    const authToken = new TokenAuthorizer(this, 'requestauthorizer', {
-      handler: authorizerLambda,
-      identitySource: IdentitySource.header('Authorization'),
-    });
-
-    return authToken;
+    brpHaalCentraalApiKeySecret.grantRead(personenLambda);
+    return personenLambda;
   }
+
+  // private authorizeToken(api: RestApi) {
+  //   const authorizerLambda = new AuthorizerFunction(this, 'authorizerfunction');
+
+  //   authorizerLambda.addPermission('ApiGatewayInvokeLambda', {
+  //     principal: new aws_iam.ServicePrincipal('apigateway.amazonaws.com'),
+  //     sourceArn: api.arnForExecuteApi(),
+  //     action: 'lambda:InvokeFunction',
+  //   });
+
+  //   const authToken = new TokenAuthorizer(this, 'requestauthorizer', {
+  //     handler: authorizerLambda,
+  //     identitySource: IdentitySource.header('Authorization'),
+  //   });
+
+  //   return authToken;
+  // }
 
   private api(cert: Certificate) {
     const truststore = new aws_s3.Bucket(this, 'truststore-certs-bucket-api', {

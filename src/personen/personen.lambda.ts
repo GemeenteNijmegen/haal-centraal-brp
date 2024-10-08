@@ -1,41 +1,59 @@
 import { Bsn, AWS } from '@gemeentenijmegen/utils';
 
 export async function handler (event: any, _context: any):Promise<any> {
-  console.log(event);
+  // console.log(event);
 
-  console.log('parse: ');
+  // console.log('parse: ');
   const request = JSON.parse(event.body);
-  console.log(request);
+  // console.log(request);
 
-  console.log('read: ');
-  console.log(request.type);
+  // console.log('read: ');
+  // console.log(request.type);
 
-  switch ( request.type ) {
-    case 'ZoekMetGeslachtsnaamEnGeboortedatum':
-      await zoekMetGeslachtsnaamEnGeboortedatum(request);
-      break;
-    case 'ZoekMetNaamEnGemeenteVanInschrijving':
-      await zoekMetNaamEnGemeenteVanInschrijving(request);
-      break;
-    case 'RaadpleegMetBurgerservicenummer':
-      return raadpleegMetBurgerservicenummer(request);
-    case 'ZoekMetPostcodeEnHuisnummer':
-      await zoekMetPostcodeEnHuisnummer(request);
-      break;
-    case 'ZoekMetStraatHuisnummerEnGemeenteVanInschrijving':
-      await zoekMetStraatHuisnummerEnGemeenteVanInschrijving(request);
-      break;
-    case 'ZoekMetNummeraanduidingIdentificatie':
-      await zoekMetNummeraanduidingIdentificatie(request);
-      break;
-    case 'ZoekMetAdresseerbaarObjectIdentificatie':
-      await zoekMetAdresseerbaarObjectIdentificatie(request);
-      break;
-    default:
-      console.log('Unknown Request Type');
-      return JSON.stringify('Unknown Request Type');
+  const validProfile = validateProfile();
+
+  if (await validProfile) {
+    switch ( request.type ) {
+      case 'ZoekMetGeslachtsnaamEnGeboortedatum':
+        await zoekMetGeslachtsnaamEnGeboortedatum(request);
+        break;
+      case 'ZoekMetNaamEnGemeenteVanInschrijving':
+        await zoekMetNaamEnGemeenteVanInschrijving(request);
+        break;
+      case 'RaadpleegMetBurgerservicenummer':
+        return raadpleegMetBurgerservicenummer(request);
+      case 'ZoekMetPostcodeEnHuisnummer':
+        await zoekMetPostcodeEnHuisnummer(request);
+        break;
+      case 'ZoekMetStraatHuisnummerEnGemeenteVanInschrijving':
+        await zoekMetStraatHuisnummerEnGemeenteVanInschrijving(request);
+        break;
+      case 'ZoekMetNummeraanduidingIdentificatie':
+        await zoekMetNummeraanduidingIdentificatie(request);
+        break;
+      case 'ZoekMetAdresseerbaarObjectIdentificatie':
+        await zoekMetAdresseerbaarObjectIdentificatie(request);
+        break;
+      default:
+        console.log('Unknown Request Type');
+        return {
+          statusCode: '400', //Bad request
+          body: 'Unknown request type',
+          headers: { 'Content-Type': 'text/plain' },
+        };
+    }
+  } else {
+    return {
+      statusCode: '403', //Forbidden
+      body: 'Mismatch in application/profile',
+      headers: { 'Content-Type': 'text/plain' },
+    };
   }
 };
+
+export async function validateProfile() {
+  return false;
+}
 
 export async function callHaalCentraal(content: string) {
   const endpoint = 'https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp';
@@ -53,7 +71,7 @@ export async function callHaalCentraal(content: string) {
 
   const data = await response.json();
 
-  console.log(JSON.stringify(data));
+  //console.log(JSON.stringify(data));
 
   return {
     statusCode: response.status,
