@@ -52,7 +52,7 @@ export async function handler (event: any, _context: any):Promise<any> {
 };
 
 export async function validateProfile() {
-  return false;
+  return true;
 }
 
 export async function callHaalCentraal(content: string) {
