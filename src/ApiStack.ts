@@ -43,18 +43,18 @@ export class ApiStack extends Stack {
   }
 
   private personenFunction(apiGatewayOutUrl: string) {
-    //const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
-    const internalBrpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'internal-brp-haal-centraal-api-key-auth-secret', Statics.internalBrpHaalCentraalApiKeySecret);
+    const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
+    //const internalBrpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'internal-brp-haal-centraal-api-key-auth-secret', Statics.internalBrpHaalCentraalApiKeySecret);
 
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
       environment: {
-        INTERNAL_API_KEY_ARN: internalBrpHaalCentraalApiKeySecret.secretArn,
+        BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
         API_GATEWAY_OUT_URL: apiGatewayOutUrl,
       },
     });
-    //brpHaalCentraalApiKeySecret.grantRead(personenLambda);
-    internalBrpHaalCentraalApiKeySecret.grantRead(personenLambda);
+    brpHaalCentraalApiKeySecret.grantRead(personenLambda);
+    //internalBrpHaalCentraalApiKeySecret.grantRead(personenLambda);
     return personenLambda;
   }
 
@@ -130,14 +130,19 @@ export class ApiStack extends Stack {
       proxy: true,
     });
 
-    api.root.addProxy({
+    const resource = api.root.addProxy({
       defaultIntegration: httpIntegration,
       anyMethod: true, //TODO better security, api key?
       defaultMethodOptions: {
-        apiKeyRequired: true,
         requestParameters: {
           'method.request.header.X-API-KEY': true,
         },
+      },
+    });
+
+    resource.addMethod('POST', httpIntegration, {
+      requestParameters: {
+        'method.request.header.X-API-KEY': true,
       },
     });
 

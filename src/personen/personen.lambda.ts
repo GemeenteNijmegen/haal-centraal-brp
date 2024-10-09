@@ -57,14 +57,14 @@ export async function validateProfile() {
 
 export async function callHaalCentraal(content: string) {
   const endpoint = process.env.API_GATEWAY_OUT_URL; //'https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp';
-  const internalApiKey = await AWS.getSecret(process.env.INTERNAL_API_KEY_ARN!);
+  const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
 
   const response = await fetch(endpoint || '', //+ '/personen',
     {
       method: 'POST',
       headers: {
         'Content-type': 'application/json',
-        'X-API-KEY': internalApiKey,
+        'X-API-KEY': brpApiKey,
       },
       body: content,
     });
