@@ -119,7 +119,7 @@ export class ApiStack extends Stack {
   }
 
   private apiGatewayOut() {
-    const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
+    //const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
 
     const api = new RestApi(this, 'api-gateway-out', {
       description: 'Haal Centraal BRP API Gateway Outwards to Layer7 (iRvN)',
@@ -128,16 +128,17 @@ export class ApiStack extends Stack {
 
     const httpIntegration = new HttpIntegration('https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp', {
       proxy: true,
-      options: {
-        requestParameters: {
-          'X-API-KEY': brpHaalCentraalApiKeySecret.secretValue.toString(), //TODO is this secure?
-        },
-      },
     });
 
     api.root.addProxy({
       defaultIntegration: httpIntegration,
       anyMethod: true, //TODO better security, api key?
+      defaultMethodOptions: {
+        apiKeyRequired: true,
+        requestParameters: {
+          'method.request.header.X-API-KEY': true,
+        },
+      },
     });
 
     const plan = api.addUsagePlan('internal-plan', {
