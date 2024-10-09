@@ -1,5 +1,5 @@
 import { Duration, Stack, StackProps, aws_s3, aws_s3_deployment, aws_secretsmanager } from 'aws-cdk-lib';
-import { ApiKey, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
+import { ApiKey, HttpIntegration, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
@@ -23,25 +23,15 @@ export class ApiStack extends Stack {
     const api = this.api(cert);
     this.addDnsRecords(api);
 
+    const apiGatewayOut = this.apiGatewayOut();
+
     const resource = api.root.addResource('personen');
-    const personenFunction = this.personenFunction();
-    // const authToken = this.authorizeToken(api);
+    const personenFunction = this.personenFunction(apiGatewayOut.url);
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
-    // resource.addMethod('GET', lambdaIntegration, {
-    //   apiKeyRequired: true,
-    //   //authorizer: authToken,
-    // });
     resource.addMethod('POST', lambdaIntegration, {
       apiKeyRequired: true,
-      //authorizer: authToken,
     });
-
-    // const httpIntegration = new HttpIntegration('https://webhook.site/a80e0e0c-9951-413a-8897-f7cd178e1710');
-    // resource.addMethod('POST', httpIntegration, {
-    //   apiKeyRequired: true,
-    //   authorizer: authToken,
-    // });
 
   }
 
@@ -52,16 +42,19 @@ export class ApiStack extends Stack {
     });
   }
 
-  private personenFunction() {
-    const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
+  private personenFunction(apiGatewayOutUrl: string) {
+    //const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
+    const internalBrpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'internal-brp-haal-centraal-api-key-auth-secret', Statics.internalBrpHaalCentraalApiKeySecret);
 
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
       environment: {
-        BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
+        INTERNAL_API_KEY_ARN: internalBrpHaalCentraalApiKeySecret.secretArn,
+        API_GATEWAY_OUT_URL: apiGatewayOutUrl,
       },
     });
-    brpHaalCentraalApiKeySecret.grantRead(personenLambda);
+    //brpHaalCentraalApiKeySecret.grantRead(personenLambda);
+    internalBrpHaalCentraalApiKeySecret.grantRead(personenLambda);
     return personenLambda;
   }
 
@@ -124,6 +117,43 @@ export class ApiStack extends Stack {
     });
     return api;
   }
+
+  private apiGatewayOut() {
+    const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
+
+    const api = new RestApi(this, 'api-gateway-out', {
+      description: 'Haal Centraal BRP API Gateway Outwards to Layer7 (iRvN)',
+      deployOptions: { loggingLevel: MethodLoggingLevel.INFO },
+    });
+
+    const httpIntegration = new HttpIntegration('https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp', {
+      proxy: true,
+      options: {
+        requestParameters: {
+          'X-API-KEY': brpHaalCentraalApiKeySecret.secretValue.toString(), //TODO is this secure?
+        },
+      },
+    });
+
+    api.root.addProxy({
+      defaultIntegration: httpIntegration,
+      anyMethod: true, //TODO better security, api key?
+    });
+
+    const plan = api.addUsagePlan('internal-plan', {
+      description: 'internal use',
+    });
+    const key = new ApiKey(this, 'internal-apikey', {
+      description: 'Haal Centraal BRP Api Key for Outwards API Gateway',
+    });
+    plan.addApiKey(key);
+    plan.node.addDependency(key);
+    plan.addApiStage({
+      stage: api.deploymentStage,
+    });
+
+    return api;
+  };
 
   private cert() {
     const cert = new Certificate(this, 'api-cert', {

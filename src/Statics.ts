@@ -30,4 +30,5 @@ export class Statics {
    * BRP Haal Centraal API Key
    */
   static readonly haalCentraalApiKeySecret: string = '/cdk/haal-centraal-brp/brp-haal-centraal-api-key';
+  static readonly internalBrpHaalCentraalApiKeySecret: string = '/cdk/haal-centraal-brp/internal-brp-haal-centraal-api-key';
 }
