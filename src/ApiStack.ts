@@ -1,5 +1,5 @@
 import { Duration, Stack, StackProps, aws_s3, aws_s3_deployment, aws_secretsmanager } from 'aws-cdk-lib';
-import { ApiKey, HttpIntegration, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
+import { Deployment, Stage, CfnClientCertificate, ApiKey, HttpIntegration, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
@@ -48,6 +48,7 @@ export class ApiStack extends Stack {
 
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
+      memorySize: 512,
       environment: {
         BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
         API_GATEWAY_OUT_URL: apiGatewayOutUrl,
@@ -147,9 +148,24 @@ export class ApiStack extends Stack {
     });
     plan.addApiKey(key);
     plan.node.addDependency(key);
-    plan.addApiStage({
-      stage: api.deploymentStage,
+    // plan.addApiStage({
+    //   stage: api.deploymentStage,
+    // });
+
+    const cc = new CfnClientCertificate(this, 'client-cert', {
+      description: 'Client Certificate for API Gateway Outwards (iRvN)',
     });
+
+    const deployment = new Deployment(this, 'api-deployment', {
+      api: api,
+    });
+
+    const stage = new Stage(this, 'api-stage', {
+      deployment: deployment,
+      clientCertificateId: cc.ref,
+    });
+
+    plan.addApiStage({ stage: stage });
 
     return api;
   };
