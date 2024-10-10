@@ -126,21 +126,12 @@ export class ApiStack extends Stack {
       deployOptions: { loggingLevel: MethodLoggingLevel.INFO },
     });
 
-    const httpIntegration = new HttpIntegration('https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp', {
+    const httpIntegration = new HttpIntegration('https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp/personen', {
       proxy: true,
+      httpMethod: 'POST',
     });
 
     const resource = api.root.addResource('personen');
-
-    // const resource = api.root.addProxy({
-    //   defaultIntegration: httpIntegration,
-    //   anyMethod: true, //TODO better security, api key?
-    //   defaultMethodOptions: {
-    //     requestParameters: {
-    //       'method.request.header.X-API-KEY': true,
-    //     },
-    //   },
-    // });
 
     resource.addMethod('POST', httpIntegration, {
       requestParameters: {
