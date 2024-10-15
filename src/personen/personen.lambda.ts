@@ -10,7 +10,7 @@ export async function handler (event: any, _context: any):Promise<any> {
   // console.log('read: ');
   // console.log(request.type);
 
-  const validProfile = validateProfile();
+  const validProfile = validateProfile(request.fields, 'testApp'); //TODO: testApp can be api-key or certificate or any other way to identify the application.
 
   if (await validProfile) {
     switch ( request.type ) {
@@ -51,8 +51,19 @@ export async function handler (event: any, _context: any):Promise<any> {
   }
 };
 
-export async function validateProfile() {
-  return true;
+export async function validateProfile(fields: [], applicationId: string) {
+  const profile = getProfile(applicationId);
+
+  const check = fields.every(async field => (await profile).includes(field)); // Validate if every field is fields is part of the allowed fields in the profile.
+  return check;
+}
+
+export async function getProfile(applicationId: string) {
+  //TODO: get profile config file related to the application and return the fields
+  if (applicationId == 'testApp') {
+    console.log(applicationId);
+  }
+  return ['aNummer', 'adressering', 'burgerservicenummer']; //PLACEHOLDER: returns a list of all allowed fields
 }
 
 export async function callHaalCentraal(content: string) {
