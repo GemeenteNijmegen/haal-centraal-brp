@@ -52,9 +52,8 @@ export async function handler (event: any, _context: any):Promise<any> {
 };
 
 export async function validateProfile(fields: [], applicationId: string) {
-  const profile = getProfile(applicationId);
-
-  const check = fields.every(async field => (await profile).includes(field)); // Validate if every field is fields is part of the allowed fields in the profile.
+  const profile = new Set(await getProfile(applicationId));
+  const check = fields.every(field => profile.has(field)); // Validate if every field in fields is part of the allowed fields in the profile.
   return check;
 }
 
@@ -67,7 +66,7 @@ export async function getProfile(applicationId: string) {
 }
 
 export async function callHaalCentraal(content: string) {
-  const endpoint = process.env.API_GATEWAY_OUT_URL;
+  const endpoint = 'https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp'; //process.env.API_GATEWAY_OUT_URL;
   const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
 
   const response = await fetch(endpoint + '/personen',
