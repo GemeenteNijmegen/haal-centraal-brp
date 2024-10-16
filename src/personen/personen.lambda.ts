@@ -66,10 +66,12 @@ export async function getProfile(applicationId: string) {
 }
 
 export async function callHaalCentraal(content: string) {
-  const endpoint = 'https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp'; //process.env.API_GATEWAY_OUT_URL;
-  const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; //TODO Remove
 
-  const response = await fetch(endpoint + '/personen',
+  const endpoint = process.env.LAYER7_ENDPOINT;
+  const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
+  const response1 = await fetch(
+    endpoint || '',
     {
       method: 'POST',
       headers: {
@@ -78,13 +80,10 @@ export async function callHaalCentraal(content: string) {
       },
       body: content,
     });
-
-  const data = await response.json();
-
-  //console.log(JSON.stringify(data));
-
+  const data = await response1.json();
+  console.log(data);
   return {
-    statusCode: response.status,
+    statusCode: response1.status,
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },
   };

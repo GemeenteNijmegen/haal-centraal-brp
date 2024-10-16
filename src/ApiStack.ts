@@ -3,6 +3,7 @@ import { ApiKey, HttpIntegration, LambdaIntegration, MethodLoggingLevel, RestApi
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
@@ -23,10 +24,10 @@ export class ApiStack extends Stack {
     const api = this.api(cert);
     this.addDnsRecords(api);
 
-    const apiGatewayOut = this.apiGatewayOut();
+    this.apiGatewayOut();
 
     const resource = api.root.addResource('personen');
-    const personenFunction = this.personenFunction(apiGatewayOut.url);
+    const personenFunction = this.personenFunction();
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
     resource.addMethod('POST', lambdaIntegration, {
@@ -42,16 +43,17 @@ export class ApiStack extends Stack {
     });
   }
 
-  private personenFunction(apiGatewayOutUrl: string) {
+  private personenFunction() {
     const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
     //const internalBrpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'internal-brp-haal-centraal-api-key-auth-secret', Statics.internalBrpHaalCentraalApiKeySecret);
+    const layer7Endpoint = StringParameter.valueForStringParameter(this, Statics.layer7EndpointName);
 
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
       memorySize: 512,
       environment: {
         BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
-        API_GATEWAY_OUT_URL: apiGatewayOutUrl,
+        LAYER7_ENDPOINT: layer7Endpoint,
       },
     });
     brpHaalCentraalApiKeySecret.grantRead(personenLambda);

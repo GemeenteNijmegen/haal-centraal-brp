@@ -13,6 +13,11 @@ export class ParameterStack extends Stack {
       parameterName: '/haalcentraalbrp/dummy',
     });
 
+    new StringParameter(this, 'layer7-endpoint', {
+      stringValue: '-',
+      parameterName: Statics.layer7EndpointName,
+    });
+
     new SecretsManager.Secret(this, 'haalcentraal_secret_1', {
       secretName: Statics.haalCentraalApiKeySecret,
       description: 'BRP Api key haal centraal',
