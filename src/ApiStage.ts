@@ -12,11 +12,12 @@ export class ApiStage extends Stage {
     super(scope, id, props);
     Aspects.of(this).add(new PermissionsBoundaryAspect());
 
-    new ParameterStack(this, 'param-stack', {
+    const paramStack = new ParameterStack(this, 'param-stack', {
       env: props.configuration.deploymentEnvironment,
       description: 'Haal Centraal BRP parameters',
     });
 
-    new ApiStack(this, 'api-stack', {});
+    const apiStack = new ApiStack(this, 'api-stack', {});
+    apiStack.addDependency(paramStack);
   }
 }
