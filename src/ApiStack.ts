@@ -60,6 +60,8 @@ export class ApiStack extends Stack {
       },
     });
     brpHaalCentraalApiKeySecret.grantRead(personenLambda);
+    certificate.grantRead(personenLambda);
+    certificateKey.grantRead(personenLambda);
     //internalBrpHaalCentraalApiKeySecret.grantRead(personenLambda);
     return personenLambda;
   }
