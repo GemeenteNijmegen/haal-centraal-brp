@@ -8,11 +8,6 @@ export class ParameterStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    new StringParameter(this, 'dummy', {
-      stringValue: '-',
-      parameterName: '/haalcentraalbrp/dummy',
-    });
-
     new StringParameter(this, 'layer7-endpoint', {
       stringValue: '-',
       parameterName: Statics.layer7EndpointName,
