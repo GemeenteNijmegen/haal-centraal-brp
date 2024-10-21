@@ -1,4 +1,6 @@
+import * as https from 'https';
 import { Bsn, AWS } from '@gemeentenijmegen/utils';
+import axios from 'axios';
 
 export async function handler (event: any, _context: any):Promise<any> {
   // console.log(event);
@@ -66,24 +68,47 @@ export async function getProfile(applicationId: string) {
 }
 
 export async function callHaalCentraal(content: string) {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; //TODO Remove
+  //process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; //TODO Remove
+
+  const caKey = await AWS.getSecret(process.env.CERTIFICATE_KEY!);
+  const caCert = await AWS.getSecret(process.env.CERTIFICATE!);
+
+  const agent = new https.Agent({
+    key: caKey,
+    cert: caCert,
+  });
 
   const endpoint = process.env.LAYER7_ENDPOINT;
   const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
-  const response1 = await fetch(
+
+  const resp = axios.post(
     endpoint || '',
+    content,
     {
       method: 'POST',
+      httpAgent: agent,
       headers: {
         'Content-type': 'application/json',
         'X-API-KEY': brpApiKey,
       },
-      body: content,
-    });
-  const data = await response1.json();
+    },
+  );
+
+  // const response1 = await fetch(
+  //   endpoint || '',
+  //   {
+  //     method: 'POST',
+  //     headers: {
+  //       'Content-type': 'application/json',
+  //       'X-API-KEY': brpApiKey,
+  //     },
+  //     body: content,
+  //   });
+
+  const data = (await resp).data;
   console.log(data);
   return {
-    statusCode: response1.status,
+    statusCode: (await resp).status,
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },
   };

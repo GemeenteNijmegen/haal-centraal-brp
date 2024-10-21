@@ -33,4 +33,6 @@ export class Statics {
   static readonly internalBrpHaalCentraalApiKeySecret: string = '/cdk/haal-centraal-brp/internal-brp-haal-centraal-api-key';
 
   static readonly layer7EndpointName: string = '/cdk/haal-centraal-brp/layer7-endpoint';
+  static readonly certificate: string = '/cdk/haal-centraal-brp/certificate';
+  static readonly certificateKey: string = '/cdk/haal-centraal-brp/certificate-key';
 }

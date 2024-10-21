@@ -28,5 +28,15 @@ export class ParameterStack extends Stack {
       description: 'BRP Api key haal centraal for the Outwards Gateway (internal)',
     });
 
+    new SecretsManager.Secret(this, 'haalcentraal_secret_3', {
+      secretName: Statics.certificateKey,
+      description: 'Certificate key haal centraal',
+    });
+
+    new SecretsManager.Secret(this, 'haalcentraal_secret_4', {
+      secretName: Statics.certificate,
+      description: 'Certificate haal centraal',
+    });
+
   }
 }

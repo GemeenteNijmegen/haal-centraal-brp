@@ -45,8 +45,9 @@ export class ApiStack extends Stack {
 
   private personenFunction() {
     const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
-    //const internalBrpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'internal-brp-haal-centraal-api-key-auth-secret', Statics.internalBrpHaalCentraalApiKeySecret);
     const layer7Endpoint = StringParameter.valueForStringParameter(this, Statics.layer7EndpointName);
+    const certificate = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
+    const certificateKey = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey);
 
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
@@ -54,6 +55,8 @@ export class ApiStack extends Stack {
       environment: {
         BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
         LAYER7_ENDPOINT: layer7Endpoint,
+        CERTIFICATE: certificate.secretArn,
+        CERTIFICATE_KEY: certificateKey.secretArn,
       },
     });
     brpHaalCentraalApiKeySecret.grantRead(personenLambda);
