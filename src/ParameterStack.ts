@@ -33,5 +33,9 @@ export class ParameterStack extends Stack {
       description: 'Certificate haal centraal',
     });
 
+    new SecretsManager.Secret(this, 'haalcentraal_secret_5', {
+      secretName: Statics.certificateCa,
+      description: 'Certificate CA haal centraal',
+    });
   }
 }

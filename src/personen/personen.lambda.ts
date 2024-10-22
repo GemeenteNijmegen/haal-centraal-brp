@@ -4,17 +4,10 @@ import { Bsn, AWS } from '@gemeentenijmegen/utils';
 import axios from 'axios';
 
 export async function handler (event: any, _context: any):Promise<any> {
-  // console.log(event);
   const request = JSON.parse(event.body);
-  const apiKey = JSON.parse(event.requestContext.identity.apiKey);
+  const apiKey = event.requestContext.identity.apiKey;
 
   //const idTable = new DynamoDB.DocumentClient();
-
-  // console.log('parse: ');
-  // console.log(request);
-
-  // console.log('read: ');
-  // console.log(request.type);
 
   const validProfile = validateFields(request.fields, apiKey);
 
@@ -79,19 +72,22 @@ export async function getAllowedFields(apiKey: string) {
 
 export async function callHaalCentraal(content: string) {
 
-  const caKey = await AWS.getSecret(process.env.CERTIFICATE_KEY!);
-  const caCert = await AWS.getSecret(process.env.CERTIFICATE!);
+  const certKey = await AWS.getSecret(process.env.CERTIFICATE_KEY!);
+  const cert = await AWS.getSecret(process.env.CERTIFICATE!);
+  const certCa = await AWS.getSecret(process.env.CERTIFICATE_CA!);
 
   const agent = new https.Agent({
-    key: caKey,
-    cert: caCert,
+    key: certKey,
+    cert: cert,
+    ca: certCa,
   });
 
-  const endpoint = process.env.LAYER7_ENDPOINT;
+  const endpointName = process.env.LAYER7_ENDPOINT_NAME;
+  const endpoint = await AWS.getParameter(endpointName!);
   const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
 
   const resp = axios.post(
-    endpoint || '',
+    endpoint!,
     content,
     {
       method: 'POST',
