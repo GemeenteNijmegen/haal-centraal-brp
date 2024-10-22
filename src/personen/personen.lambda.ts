@@ -1,6 +1,6 @@
 import * as https from 'https';
 import { Bsn, AWS } from '@gemeentenijmegen/utils';
-import { DynamoDB } from 'aws-sdk';
+//import { DynamoDB } from 'aws-sdk';
 import axios from 'axios';
 
 export async function handler (event: any, _context: any):Promise<any> {
@@ -8,7 +8,7 @@ export async function handler (event: any, _context: any):Promise<any> {
   const request = JSON.parse(event.body);
   const apiKey = JSON.parse(event.requestContext.identity.apiKey);
 
-  const idTable = new DynamoDB.DocumentClient();
+  //const idTable = new DynamoDB.DocumentClient();
 
   // console.log('parse: ');
   // console.log(request);
@@ -16,7 +16,7 @@ export async function handler (event: any, _context: any):Promise<any> {
   // console.log('read: ');
   // console.log(request.type);
 
-  const validProfile = validateFields(request.fields, apiKey, idTable);
+  const validProfile = validateFields(request.fields, apiKey);
 
   if (await validProfile) {
     switch ( request.type ) {
@@ -57,24 +57,24 @@ export async function handler (event: any, _context: any):Promise<any> {
   }
 };
 
-export async function validateFields(receivedFields: [], applicationId: string, idTable: DynamoDB.DocumentClient) {
-  const allowedFields = new Set(await getAllowedFields(applicationId, idTable));
+export async function validateFields(receivedFields: [], applicationId: string) {
+  const allowedFields = new Set(await getAllowedFields(applicationId));
   const check = receivedFields.every(receivedField => allowedFields.has(receivedField)); // Validate if every field in the received fields is part of the allowed fields in the profile.
   return check;
 }
 
-export async function getAllowedFields(apiKey: string, idTable: DynamoDB.DocumentClient) {
-  const tableName = process.env.ID_TABLE_NAME;
+export async function getAllowedFields(apiKey: string) {
+  //const tableName = process.env.ID_TABLE_NAME;
 
-  const data = await idTable.get({
-    TableName: tableName + '',
-    Key: {
-      id: apiKey,
-    },
-    ProjectionExpression: 'fields',
-  }).promise();
+  // const data = await idTable.get({
+  //   TableName: tableName + '',
+  //   Key: {
+  //     id: apiKey,
+  //   },
+  //   ProjectionExpression: 'fields',
+  // }).promise();
 
-  return data.Item?.fields || []; // Returns a list of all allowed fields
+  return ['aNummer', 'adressering', 'burgerservicenummer']; // Returns a list of all allowed fields
 }
 
 export async function callHaalCentraal(content: string) {
