@@ -5,12 +5,12 @@ import axios from 'axios';
 
 export async function handler (event: any, _context: any):Promise<any> {
   // console.log(event);
+  const request = JSON.parse(event.body);
+  const apiKey = JSON.parse(event.requestContext.identity.apiKey);
 
   const idTable = new DynamoDB.DocumentClient();
 
   // console.log('parse: ');
-  const request = JSON.parse(event.body);
-  const apiKey = JSON.parse(event.requestContext.identity.apiKey);
   // console.log(request);
 
   // console.log('read: ');
