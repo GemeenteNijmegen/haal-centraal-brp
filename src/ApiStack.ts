@@ -1,6 +1,7 @@
-import { Duration, Stack, StackProps, aws_s3, aws_s3_deployment, aws_secretsmanager } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager } from 'aws-cdk-lib';
 import { ApiKey, HttpIntegration, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
+import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
@@ -20,6 +21,7 @@ export class ApiStack extends Stack {
       subdomain: 'api',
     });
 
+    const idTable = this.appIdStorage();
     const cert = this.cert();
     const api = this.api(cert);
     this.addDnsRecords(api);
@@ -27,7 +29,7 @@ export class ApiStack extends Stack {
     this.apiGatewayOut();
 
     const resource = api.root.addResource('personen');
-    const personenFunction = this.personenFunction();
+    const personenFunction = this.personenFunction(idTable);
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
     resource.addMethod('POST', lambdaIntegration, {
@@ -43,7 +45,7 @@ export class ApiStack extends Stack {
     });
   }
 
-  private personenFunction() {
+  private personenFunction(idTable: Table) {
     const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
     const layer7Endpoint = StringParameter.valueForStringParameter(this, Statics.layer7EndpointName);
     const certificate = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
@@ -57,11 +59,13 @@ export class ApiStack extends Stack {
         LAYER7_ENDPOINT: layer7Endpoint,
         CERTIFICATE: certificate.secretArn,
         CERTIFICATE_KEY: certificateKey.secretArn,
+        ID_TABLE_NAME: idTable.tableName,
       },
     });
     brpHaalCentraalApiKeySecret.grantRead(personenLambda);
     certificate.grantRead(personenLambda);
     certificateKey.grantRead(personenLambda);
+    idTable.grantWriteData(personenLambda);
     //internalBrpHaalCentraalApiKeySecret.grantRead(personenLambda);
     return personenLambda;
   }
@@ -168,5 +172,15 @@ export class ApiStack extends Stack {
       validation: CertificateValidation.fromDns(this.subdomain.hostedzone),
     });
     return cert;
+  }
+
+  private appIdStorage() {
+    const appIdStorage = new aws_dynamodb.Table(this, 'app-id-storage', {
+      partitionKey: { name: 'id', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    return appIdStorage;
   }
 }
