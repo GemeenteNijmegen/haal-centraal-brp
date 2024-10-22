@@ -131,7 +131,6 @@ export class ApiStack extends Stack {
   }
 
   private apiGatewayOut() {
-    //const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
 
     const api = new RestApi(this, 'api-gateway-out', {
       description: 'Haal Centraal BRP API Gateway Outwards to Layer7 (iRvN)',
