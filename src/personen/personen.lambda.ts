@@ -1,16 +1,15 @@
 import * as https from 'https';
 import { Bsn, AWS } from '@gemeentenijmegen/utils';
-//import { DynamoDB } from 'aws-sdk';
-//import axios from 'axios';
+import { DynamoDB } from 'aws-sdk';
 import nodefetch from 'node-fetch';
 
 export async function handler (event: any, _context: any):Promise<any> {
   const request = JSON.parse(event.body);
   const apiKey = event.requestContext.identity.apiKey;
 
-  //const idTable = new DynamoDB.DocumentClient();
+  const idTable = new DynamoDB.DocumentClient();
 
-  const validProfile = validateFields(request.fields, apiKey);
+  const validProfile = validateFields(request.fields, apiKey, idTable);
 
   if (await validProfile) {
     switch ( request.type ) {
@@ -51,24 +50,26 @@ export async function handler (event: any, _context: any):Promise<any> {
   }
 };
 
-export async function validateFields(receivedFields: [], applicationId: string) {
-  const allowedFields = new Set(await getAllowedFields(applicationId));
+export async function validateFields(receivedFields: [], applicationId: string, idTable: DynamoDB.DocumentClient) {
+  const allowedFields = new Set(await getAllowedFields(applicationId, idTable));
   const check = receivedFields.every(receivedField => allowedFields.has(receivedField)); // Validate if every field in the received fields is part of the allowed fields in the profile.
   return check;
 }
 
-export async function getAllowedFields(apiKey: string) {
-  //const tableName = process.env.ID_TABLE_NAME;
+export async function getAllowedFields(apiKey: string, idTable: DynamoDB.DocumentClient) {
+  const tableName = process.env.ID_TABLE_NAME;
 
-  // const data = await idTable.get({
-  //   TableName: tableName + '',
-  //   Key: {
-  //     id: apiKey,
-  //   },
-  //   ProjectionExpression: 'fields',
-  // }).promise();
+  const data = await idTable.get({
+    TableName: tableName + '',
+    Key: {
+      id: apiKey,
+    },
+    ProjectionExpression: 'fields',
+  }).promise();
 
-  return ['aNummer', 'adressering', 'burgerservicenummer']; // Returns a list of all allowed fields
+  console.log(data.Item?.fields);
+
+  return data.Item?.fields; //['aNummer', 'adressering', 'burgerservicenummer']; // Returns a list of all allowed fields
 }
 
 export async function callHaalCentraal(content: string) {
@@ -81,22 +82,11 @@ export async function callHaalCentraal(content: string) {
     key: certKey,
     cert: cert,
     ca: certCa,
+    rejectUnauthorized: false, // TODO should be true, but this raises a 'Self-signed certificate in certificate' chain error
   });
 
   const endpoint = process.env.LAYER7_ENDPOINT!;
   const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
-
-  // const req = https.request({
-  //   hostname: endpoint,
-  //   method: 'POST',
-  //   headers: {
-  //     'Content-type': 'application/json',
-  //     'X-API-KEY': brpApiKey,
-  //   },
-  //   agent: agent,
-  // });
-
-  // req.write(content);
 
   const resp = await nodefetch(
     endpoint,
@@ -110,31 +100,6 @@ export async function callHaalCentraal(content: string) {
       agent: agent,
     },
   );
-
-
-  // const resp = axios.post(
-  //   endpoint,
-  //   content,
-  //   {
-  //     method: 'POST',
-  //     httpAgent: agent,
-  //     headers: {
-  //       'Content-type': 'application/json',
-  //       'X-API-KEY': brpApiKey,
-  //     },
-  //   },
-  // );
-
-  // const response1 = await fetch(
-  //   endpoint || '',
-  //   {
-  //     method: 'POST',
-  //     headers: {
-  //       'Content-type': 'application/json',
-  //       'X-API-KEY': brpApiKey,
-  //     },
-  //     body: content,
-  //   });
 
   const data = await resp.json();
   console.log(data);
