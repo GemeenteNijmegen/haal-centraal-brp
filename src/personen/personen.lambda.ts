@@ -1,7 +1,8 @@
 import * as https from 'https';
 import { Bsn, AWS } from '@gemeentenijmegen/utils';
 //import { DynamoDB } from 'aws-sdk';
-import axios from 'axios';
+//import axios from 'axios';
+import nodefetch from 'node-fetch';
 
 export async function handler (event: any, _context: any):Promise<any> {
   const request = JSON.parse(event.body);
@@ -85,18 +86,44 @@ export async function callHaalCentraal(content: string) {
   const endpoint = process.env.LAYER7_ENDPOINT!;
   const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
 
-  const resp = axios.post(
+  // const req = https.request({
+  //   hostname: endpoint,
+  //   method: 'POST',
+  //   headers: {
+  //     'Content-type': 'application/json',
+  //     'X-API-KEY': brpApiKey,
+  //   },
+  //   agent: agent,
+  // });
+
+  // req.write(content);
+
+  const resp = await nodefetch(
     endpoint,
-    content,
     {
       method: 'POST',
-      httpAgent: agent,
+      body: content,
       headers: {
         'Content-type': 'application/json',
         'X-API-KEY': brpApiKey,
       },
+      agent: agent,
     },
   );
+
+
+  // const resp = axios.post(
+  //   endpoint,
+  //   content,
+  //   {
+  //     method: 'POST',
+  //     httpAgent: agent,
+  //     headers: {
+  //       'Content-type': 'application/json',
+  //       'X-API-KEY': brpApiKey,
+  //     },
+  //   },
+  // );
 
   // const response1 = await fetch(
   //   endpoint || '',
@@ -109,10 +136,10 @@ export async function callHaalCentraal(content: string) {
   //     body: content,
   //   });
 
-  const data = (await resp).data;
+  const data = await resp.json();
   console.log(data);
   return {
-    statusCode: (await resp).status,
+    statusCode: await resp.status,
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },
   };

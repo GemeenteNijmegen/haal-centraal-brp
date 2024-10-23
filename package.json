@@ -55,9 +55,9 @@
     "@gemeentenijmegen/utils": "^0.0.16",
     "aws-cdk-lib": "^2.1.0",
     "aws-sdk": "^2.1691.0",
-    "axios": "^1.7.7",
     "constructs": "^10.0.5",
-    "https": "^1.0.0"
+    "https": "^1.0.0",
+    "node-fetch": "^3.3.2"
   },
   "license": "EUPL-1.2",
   "publishConfig": {

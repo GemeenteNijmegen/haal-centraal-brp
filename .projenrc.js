@@ -7,9 +7,10 @@ const project = new GemeenteNijmegenCdkApp({
 
   deps: ['@gemeentenijmegen/aws-constructs',
     '@gemeentenijmegen/utils',
-    'axios',
+    //'axios',
     'https',
-    'aws-sdk'], /* Runtime dependencies of this module. */
+    'aws-sdk',
+    'node-fetch'], /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
   // packageName: undefined,  /* The "name" in package.json. */
 });
