@@ -82,12 +82,11 @@ export async function callHaalCentraal(content: string) {
     ca: certCa,
   });
 
-  const endpointName = process.env.LAYER7_ENDPOINT_NAME;
-  const endpoint = await AWS.getParameter(endpointName!);
+  const endpoint = process.env.LAYER7_ENDPOINT!;
   const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
 
   const resp = axios.post(
-    endpoint!,
+    endpoint,
     content,
     {
       method: 'POST',

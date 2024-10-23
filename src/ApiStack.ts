@@ -1,9 +1,10 @@
 import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager } from 'aws-cdk-lib';
-import { ApiKey, HttpIntegration, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
+import { ApiKey, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
@@ -25,8 +26,6 @@ export class ApiStack extends Stack {
     const api = this.api(cert);
     this.addDnsRecords(api);
 
-    this.apiGatewayOut();
-
     const resource = api.root.addResource('personen');
     const personenFunction = this.personenFunction(idTable);
 
@@ -46,7 +45,7 @@ export class ApiStack extends Stack {
 
   private personenFunction(idTable: Table) {
     const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
-    const layer7Endpoint = Statics.layer7EndpointName;
+    const layer7Endpoint = StringParameter.valueForStringParameter(this, Statics.layer7EndpointName);
     const certificate = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
     const certificateKey = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey);
     const certificateCa = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-ca-secret', Statics.certificateCa);
@@ -56,7 +55,7 @@ export class ApiStack extends Stack {
       memorySize: 512,
       environment: {
         BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
-        LAYER7_ENDPOINT_NAME: layer7Endpoint,
+        LAYER7_ENDPOINT: layer7Endpoint,
         CERTIFICATE: certificate.secretArn,
         CERTIFICATE_KEY: certificateKey.secretArn,
         CERTIFICATE_CA: certificateCa.secretArn,
@@ -131,41 +130,6 @@ export class ApiStack extends Stack {
     });
     return api;
   }
-
-  private apiGatewayOut() {
-
-    const api = new RestApi(this, 'api-gateway-out', {
-      description: 'Haal Centraal BRP API Gateway Outwards to Layer7 (iRvN)',
-      deployOptions: { loggingLevel: MethodLoggingLevel.INFO },
-    });
-
-    const httpIntegration = new HttpIntegration('https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp/personen', {
-      proxy: true,
-      httpMethod: 'POST',
-    });
-
-    const resource = api.root.addResource('personen');
-
-    resource.addMethod('POST', httpIntegration, {
-      requestParameters: {
-        'method.request.header.X-API-KEY': true,
-      },
-    });
-
-    const plan = api.addUsagePlan('internal-plan', {
-      description: 'internal use',
-    });
-    const key = new ApiKey(this, 'internal-apikey', {
-      description: 'Haal Centraal BRP Api Key for Outwards API Gateway',
-    });
-    plan.addApiKey(key);
-    plan.node.addDependency(key);
-    plan.addApiStage({
-      stage: api.deploymentStage,
-    });
-
-    return api;
-  };
 
   private cert() {
     const cert = new Certificate(this, 'api-cert', {
