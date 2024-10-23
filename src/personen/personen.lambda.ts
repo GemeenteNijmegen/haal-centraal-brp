@@ -57,14 +57,14 @@ export async function validateFields(receivedFields: [], applicationId: string, 
 }
 
 export async function getAllowedFields(apiKey: string, idTable: DynamoDB.DocumentClient) {
-  const tableName = process.env.ID_TABLE_NAME;
+  const tableName = process.env.ID_TABLE_NAME!;
 
   const data = await idTable.get({
-    TableName: tableName + '',
+    TableName: tableName,
     Key: {
       id: apiKey,
     },
-    ProjectionExpression: 'fields',
+    // ProjectionExpression: 'fields',
   }).promise();
 
   console.log(data.Item?.fields);
