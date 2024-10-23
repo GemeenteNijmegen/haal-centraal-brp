@@ -66,7 +66,7 @@ export class ApiStack extends Stack {
     certificate.grantRead(personenLambda);
     certificateKey.grantRead(personenLambda);
     certificateCa.grantRead(personenLambda);
-    idTable.grantWriteData(personenLambda);
+    idTable.grantReadWriteData(personenLambda);
     //internalBrpHaalCentraalApiKeySecret.grantRead(personenLambda);
     return personenLambda;
   }
