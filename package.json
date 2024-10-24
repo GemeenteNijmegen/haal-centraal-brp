@@ -33,7 +33,6 @@
   },
   "devDependencies": {
     "@gemeentenijmegen/projen-project-type": "^1.8.1",
-    "@testcontainers/localstack": "^10.13.2",
     "@types/jest": "^29.5.13",
     "@types/node": "^18",
     "@typescript-eslint/eslint-plugin": "^7",
@@ -58,7 +57,8 @@
     "aws-sdk": "^2.1691.0",
     "constructs": "^10.0.5",
     "https": "^1.0.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "wrap-ansi": "6"
   },
   "license": "EUPL-1.2",
   "publishConfig": {
