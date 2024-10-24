@@ -1,10 +1,11 @@
-import { aws_secretsmanager, Duration, Stack, StackProps, aws_s3, aws_s3_deployment } from 'aws-cdk-lib';
-import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
+import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager } from 'aws-cdk-lib';
+import { ApiKey, LambdaIntegration, MethodLoggingLevel, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
+import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
-//import { AuthorizerFunction } from './authorizer/authorizer-function';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
 import { Statics } from './Statics';
@@ -20,22 +21,19 @@ export class ApiStack extends Stack {
       subdomain: 'api',
     });
 
+    const idTable = this.appIdStorage();
     const cert = this.cert();
     const api = this.api(cert);
     this.addDnsRecords(api);
 
     const resource = api.root.addResource('personen');
-    const personenFunction = this.personenFunction();
-    //const authToken = this.authorizeToken();
+    const personenFunction = this.personenFunction(idTable);
+
     const lambdaIntegration = new LambdaIntegration(personenFunction);
-    resource.addMethod('GET', lambdaIntegration, {
-      apiKeyRequired: true,
-      //authorizer: authToken,
-    });
     resource.addMethod('POST', lambdaIntegration, {
       apiKeyRequired: true,
-      //authorizer: authToken,
     });
+
   }
 
   private addDnsRecords(api: RestApi) {
@@ -45,32 +43,37 @@ export class ApiStack extends Stack {
     });
   }
 
-  private personenFunction() {
+  private personenFunction(idTable: Table) {
     const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
+    const layer7Endpoint = StringParameter.valueForStringParameter(this, Statics.layer7EndpointName);
+    const certificate = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
+    const certificateKey = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey);
+    const certificateCa = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-ca-secret', Statics.certificateCa);
 
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
+      memorySize: 512,
       environment: {
         BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
+        LAYER7_ENDPOINT: layer7Endpoint,
+        CERTIFICATE: certificate.secretArn,
+        CERTIFICATE_KEY: certificateKey.secretArn,
+        CERTIFICATE_CA: certificateCa.secretArn,
+        ID_TABLE_NAME: idTable.tableName,
       },
     });
     brpHaalCentraalApiKeySecret.grantRead(personenLambda);
+    certificate.grantRead(personenLambda);
+    certificateKey.grantRead(personenLambda);
+    certificateCa.grantRead(personenLambda);
+    idTable.grantReadWriteData(personenLambda);
     return personenLambda;
   }
 
-  // private authorizeToken() {
-  //   const authorizerLambda = new AuthorizerFunction(this, 'authorizerfunction', {});
-
-  //   const authToken = new TokenAuthorizer(this, 'requestauthorizer', {
-  //     handler: authorizerLambda,
-  //     identitySource: 'method.request.header.AuthorizeToken',
-  //   });
-
-  //   return authToken;
-  // }
-
   private api(cert: Certificate) {
-    const truststore = new aws_s3.Bucket(this, 'truststore-certs-bucket-api');
+    const truststore = new aws_s3.Bucket(this, 'truststore-certs-bucket-api', {
+      //versioned: true, TODO enable?
+    });
 
     const deployment = new aws_s3_deployment.BucketDeployment(this, 'bucket-deployment-truststore-certs-api', {
       sources: [aws_s3_deployment.Source.asset('./src/certs/')],
@@ -83,10 +86,13 @@ export class ApiStack extends Stack {
         certificate: cert,
         domainName: this.subdomain.hostedzone.zoneName,
         securityPolicy: SecurityPolicy.TLS_1_2,
-        // mtls: {
-        //   bucket: truststore,
-        //   key: 'truststore.pem',
-        // },
+        mtls: {
+          bucket: truststore,
+          key: 'truststore.pem',
+        },
+      },
+      deployOptions: {
+        loggingLevel: MethodLoggingLevel.INFO,
       },
     });
 
@@ -113,5 +119,15 @@ export class ApiStack extends Stack {
       validation: CertificateValidation.fromDns(this.subdomain.hostedzone),
     });
     return cert;
+  }
+
+  private appIdStorage() {
+    const appIdStorage = new aws_dynamodb.Table(this, 'app-id-storage', {
+      partitionKey: { name: 'id', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    return appIdStorage;
   }
 }

@@ -1,81 +1,127 @@
+import * as https from 'https';
 import { Bsn, AWS } from '@gemeentenijmegen/utils';
+import { DynamoDB } from 'aws-sdk';
+import nodefetch from 'node-fetch';
 
 export async function handler (event: any, _context: any):Promise<any> {
-  console.log(event);
-
-  console.log('parse: ');
   const request = JSON.parse(event.body);
-  console.log(request);
+  const apiKey = event.requestContext.identity.apiKey;
 
-  console.log('read: ');
-  console.log(request.type);
+  const idTable = new DynamoDB.DocumentClient();
 
-  switch ( request.type ) {
-    case 'ZoekMetGeslachtsnaamEnGeboortedatum':
-      await zoekMetGeslachtsnaamEnGeboortedatum(request);
-      break;
-    case 'ZoekMetNaamEnGemeenteVanInschrijving':
-      await zoekMetNaamEnGemeenteVanInschrijving(request);
-      break;
-    case 'RaadpleegMetBurgerservicenummer':
-      return raadpleegMetBurgerservicenummer(request);
-    case 'ZoekMetPostcodeEnHuisnummer':
-      await zoekMetPostcodeEnHuisnummer(request);
-      break;
-    case 'ZoekMetStraatHuisnummerEnGemeenteVanInschrijving':
-      await zoekMetStraatHuisnummerEnGemeenteVanInschrijving(request);
-      break;
-    case 'ZoekMetNummeraanduidingIdentificatie':
-      await zoekMetNummeraanduidingIdentificatie(request);
-      break;
-    case 'ZoekMetAdresseerbaarObjectIdentificatie':
-      await zoekMetAdresseerbaarObjectIdentificatie(request);
-      break;
-    default:
-      console.log('Unknown Request Type');
-      return JSON.stringify('Unknown Request Type');
+  const validProfile = validateFields(request.fields, apiKey, idTable);
+
+  if (await validProfile) {
+    switch ( request.type ) {
+      case 'ZoekMetGeslachtsnaamEnGeboortedatum':
+        await zoekMetGeslachtsnaamEnGeboortedatum(request);
+        break;
+      case 'ZoekMetNaamEnGemeenteVanInschrijving':
+        await zoekMetNaamEnGemeenteVanInschrijving(request);
+        break;
+      case 'RaadpleegMetBurgerservicenummer':
+        return raadpleegMetBurgerservicenummer(request);
+      case 'ZoekMetPostcodeEnHuisnummer':
+        await zoekMetPostcodeEnHuisnummer(request);
+        break;
+      case 'ZoekMetStraatHuisnummerEnGemeenteVanInschrijving':
+        await zoekMetStraatHuisnummerEnGemeenteVanInschrijving(request);
+        break;
+      case 'ZoekMetNummeraanduidingIdentificatie':
+        await zoekMetNummeraanduidingIdentificatie(request);
+        break;
+      case 'ZoekMetAdresseerbaarObjectIdentificatie':
+        await zoekMetAdresseerbaarObjectIdentificatie(request);
+        break;
+      default:
+        console.log('Unknown Request Type');
+        return {
+          statusCode: '400', //Bad request
+          body: 'Unknown request type',
+          headers: { 'Content-Type': 'text/plain' },
+        };
+    }
+  } else {
+    return {
+      statusCode: '403', //Forbidden
+      body: 'Mismatch in application/profile',
+      headers: { 'Content-Type': 'text/plain' },
+    };
   }
 };
 
-export async function callHaalCentraal(content: string) {
-  const endpoint = 'https://proefomgeving.haalcentraal.nl/haalcentraal/api/brp';
-  const apiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
+export async function validateFields(receivedFields: [], applicationId: string, idTable: DynamoDB.DocumentClient) {
+  const allowedFields = new Set(await getAllowedFields(applicationId, idTable));
+  const check = receivedFields.every(receivedField => allowedFields.has(receivedField)); // Validate if every field in the received fields is part of the allowed fields in the profile.
+  return check;
+}
 
-  const response = await fetch(endpoint + '/personen',
+export async function getAllowedFields(apiKey: string, idTable: DynamoDB.DocumentClient) {
+  const tableName = process.env.ID_TABLE_NAME!;
+
+  const data = await idTable.get({
+    TableName: tableName,
+    Key: {
+      id: apiKey,
+    },
+  }).promise();
+
+  console.log(data.Item?.fields);
+  console.log(data.Item?.fields.values);
+
+  return data.Item?.fields.values; // Returns a list of all allowed fields
+}
+
+export async function callHaalCentraal(content: string) {
+
+  const certKey = await AWS.getSecret(process.env.CERTIFICATE_KEY!);
+  const cert = await AWS.getSecret(process.env.CERTIFICATE!);
+  const certCa = await AWS.getSecret(process.env.CERTIFICATE_CA!);
+
+  const agent = new https.Agent({
+    key: certKey,
+    cert: cert,
+    ca: certCa,
+    rejectUnauthorized: false, // TODO should be true, but this raises a 'Self-signed certificate in certificate' chain error
+  });
+
+  const endpoint = process.env.LAYER7_ENDPOINT!;
+  const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
+
+  const resp = await nodefetch(
+    endpoint,
     {
       method: 'POST',
+      body: content,
       headers: {
         'Content-type': 'application/json',
-        'X-API-KEY': apiKey,
+        'X-API-KEY': brpApiKey,
       },
-      body: content,
-    });
+      agent: agent,
+    },
+  );
 
-  const data = await response.json() as Promise<any>;
+  const data = await resp.json();
+  console.log(data);
+  return {
+    statusCode: await resp.status,
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
+  };
 
-  if ((await data).personen[0].overlijden) {
-    throw new Error('Persoon lijkt overleden');
-  } else if ((await data).personen[0]) {
-    return {
-      statusCode: 201,
-      body: JSON.stringify((await data).personen[0]),
-      headers: { 'Content-Type': 'application/json' },
-    };
-  }
 }
 
 export async function zoekMetGeslachtsnaamEnGeboortedatum(request: any) {
 
   const content = {
     type: 'ZoekMetGeslachtsnaamEnGeboortedatum',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    geboortedatum: request.geboortedatum, //'1964-09-24',
-    geslachtsnaam: request.geslachtsnaam, //'Vries',
-    geslacht: request.geslacht, //'V',
-    voorvoegsel: request.voorvoegsel, //'de',
-    voornamen: request.voornamen, //'Dirk',
+    geboortedatum: request.geboortedatum,
+    geslachtsnaam: request.geslachtsnaam,
+    geslacht: request.geslacht,
+    voorvoegsel: request.voorvoegsel,
+    voornamen: request.voornamen,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -86,13 +132,13 @@ export async function zoekMetNaamEnGemeenteVanInschrijving(request: any) {
 
   const content = {
     type: 'ZoekMetNaamEnGemeenteVanInschrijving',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
+    gemeenteVanInschrijving: '', //TODO
     inclusiefOverledenPersonen: true,
-    geslacht: request.geslacht, //'V',
-    geslachtsnaam: request.geslachtsnaam, //'Vries',
-    voorvoegsel: request.voorvoegsel, //'de',
-    voornamen: request.voornamen, //'Dirk',
+    geslacht: request.geslacht,
+    geslachtsnaam: request.geslachtsnaam,
+    voorvoegsel: request.voorvoegsel,
+    voornamen: request.voornamen,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -110,8 +156,8 @@ export async function raadpleegMetBurgerservicenummer(request: any) {
   });
 
   const content = {
-    type: request.type, //'RaadpleegMetBurgerservicenummer',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
+    type: request.type,
+    fields: request.fields,
     burgerservicenummer: bsnList,
   };
 
@@ -123,13 +169,12 @@ export async function zoekMetPostcodeEnHuisnummer(request: any) {
 
   const content = {
     type: 'ZoekMetPostcodeEnHuisnummer',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518', // TODO: Make optional
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    huisletter: request.huisletter, //'a',
-    huisnummer: request.huisnummer, //14,
-    huisnummertoevoeging: request.huisnummertoevoeging, //'bis',
-    postcode: request.postcode, //'2341SX',
+    huisletter: request.huisletter,
+    huisnummer: request.huisnummer,
+    huisnummertoevoeging: request.huisnummertoevoeging,
+    postcode: request.postcode,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -140,13 +185,12 @@ export async function zoekMetStraatHuisnummerEnGemeenteVanInschrijving(request: 
 
   const content = {
     type: 'ZoekMetStraatHuisnummerEnGemeenteVanInschrijving',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    huisletter: request.huisletter, //'a',
-    huisnummer: request.huisnummer, //14,
-    huisnummertoevoeging: request.huisnummertoevoeging, //'bis',
-    straat: request.straat, //'Tulpstraat',
+    huisletter: request.huisletter,
+    huisnummer: request.huisnummer,
+    huisnummertoevoeging: request.huisnummertoevoeging,
+    straat: request.straat,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -158,10 +202,9 @@ export async function zoekMetNummeraanduidingIdentificatie(request: any) {
 
   const content = {
     type: 'ZoekMetNummeraanduidingIdentificatie',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    nummeraanduidingIdentificatie: request.nummeraanduidingIdentificatie, //'0518200000366054',
+    nummeraanduidingIdentificatie: request.nummeraanduidingIdentificatie,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -173,10 +216,9 @@ export async function zoekMetAdresseerbaarObjectIdentificatie(request: any) {
 
   const content = {
     type: 'ZoekMetAdresseerbaarObjectIdentificatie',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    adresseerbaarObjectIdentificatie: request.adresseerbaarObjectIdentificatie, //'0226010000038820',
+    adresseerbaarObjectIdentificatie: request.adresseerbaarObjectIdentificatie,
   };
 
   await callHaalCentraal(JSON.stringify(content) );

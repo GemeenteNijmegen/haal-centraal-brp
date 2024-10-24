@@ -8,9 +8,9 @@ export class ParameterStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    new StringParameter(this, 'dummy', {
+    new StringParameter(this, 'layer7-endpoint', {
       stringValue: '-',
-      parameterName: '/haalcentraalbrp/dummy',
+      parameterName: Statics.layer7EndpointName,
     });
 
     new SecretsManager.Secret(this, 'haalcentraal_secret_1', {
@@ -18,5 +18,19 @@ export class ParameterStack extends Stack {
       description: 'BRP Api key haal centraal',
     });
 
+    new SecretsManager.Secret(this, 'haalcentraal_secret_3', {
+      secretName: Statics.certificateKey,
+      description: 'Certificate key haal centraal',
+    });
+
+    new SecretsManager.Secret(this, 'haalcentraal_secret_4', {
+      secretName: Statics.certificate,
+      description: 'Certificate haal centraal',
+    });
+
+    new SecretsManager.Secret(this, 'haalcentraal_secret_5', {
+      secretName: Statics.certificateCa,
+      description: 'Certificate CA haal centraal',
+    });
   }
 }
