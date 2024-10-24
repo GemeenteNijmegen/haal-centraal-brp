@@ -68,8 +68,9 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
   }).promise();
 
   console.log(data.Item?.fields);
+  console.log(data.Item?.fields.values);
 
-  return data.Item?.fields; //['aNummer', 'adressering', 'burgerservicenummer']; // Returns a list of all allowed fields
+  return data.Item?.fields.values; //['aNummer', 'adressering', 'burgerservicenummer']; // Returns a list of all allowed fields
 }
 
 export async function callHaalCentraal(content: string) {
