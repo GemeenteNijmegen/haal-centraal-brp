@@ -64,13 +64,12 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
     Key: {
       id: apiKey,
     },
-    // ProjectionExpression: 'fields',
   }).promise();
 
   console.log(data.Item?.fields);
   console.log(data.Item?.fields.values);
 
-  return data.Item?.fields.values; //['aNummer', 'adressering', 'burgerservicenummer']; // Returns a list of all allowed fields
+  return data.Item?.fields.values; // Returns a list of all allowed fields
 }
 
 export async function callHaalCentraal(content: string) {
@@ -116,14 +115,13 @@ export async function zoekMetGeslachtsnaamEnGeboortedatum(request: any) {
 
   const content = {
     type: 'ZoekMetGeslachtsnaamEnGeboortedatum',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    geboortedatum: request.geboortedatum, //'1964-09-24',
-    geslachtsnaam: request.geslachtsnaam, //'Vries',
-    geslacht: request.geslacht, //'V',
-    voorvoegsel: request.voorvoegsel, //'de',
-    voornamen: request.voornamen, //'Dirk',
+    geboortedatum: request.geboortedatum,
+    geslachtsnaam: request.geslachtsnaam,
+    geslacht: request.geslacht,
+    voorvoegsel: request.voorvoegsel,
+    voornamen: request.voornamen,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -134,13 +132,13 @@ export async function zoekMetNaamEnGemeenteVanInschrijving(request: any) {
 
   const content = {
     type: 'ZoekMetNaamEnGemeenteVanInschrijving',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
+    gemeenteVanInschrijving: '', //TODO
     inclusiefOverledenPersonen: true,
-    geslacht: request.geslacht, //'V',
-    geslachtsnaam: request.geslachtsnaam, //'Vries',
-    voorvoegsel: request.voorvoegsel, //'de',
-    voornamen: request.voornamen, //'Dirk',
+    geslacht: request.geslacht,
+    geslachtsnaam: request.geslachtsnaam,
+    voorvoegsel: request.voorvoegsel,
+    voornamen: request.voornamen,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -158,8 +156,8 @@ export async function raadpleegMetBurgerservicenummer(request: any) {
   });
 
   const content = {
-    type: request.type, //'RaadpleegMetBurgerservicenummer',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
+    type: request.type,
+    fields: request.fields,
     burgerservicenummer: bsnList,
   };
 
@@ -171,13 +169,12 @@ export async function zoekMetPostcodeEnHuisnummer(request: any) {
 
   const content = {
     type: 'ZoekMetPostcodeEnHuisnummer',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518', // TODO: Make optional
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    huisletter: request.huisletter, //'a',
-    huisnummer: request.huisnummer, //14,
-    huisnummertoevoeging: request.huisnummertoevoeging, //'bis',
-    postcode: request.postcode, //'2341SX',
+    huisletter: request.huisletter,
+    huisnummer: request.huisnummer,
+    huisnummertoevoeging: request.huisnummertoevoeging,
+    postcode: request.postcode,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -188,13 +185,12 @@ export async function zoekMetStraatHuisnummerEnGemeenteVanInschrijving(request: 
 
   const content = {
     type: 'ZoekMetStraatHuisnummerEnGemeenteVanInschrijving',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    huisletter: request.huisletter, //'a',
-    huisnummer: request.huisnummer, //14,
-    huisnummertoevoeging: request.huisnummertoevoeging, //'bis',
-    straat: request.straat, //'Tulpstraat',
+    huisletter: request.huisletter,
+    huisnummer: request.huisnummer,
+    huisnummertoevoeging: request.huisnummertoevoeging,
+    straat: request.straat,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -206,10 +202,9 @@ export async function zoekMetNummeraanduidingIdentificatie(request: any) {
 
   const content = {
     type: 'ZoekMetNummeraanduidingIdentificatie',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    nummeraanduidingIdentificatie: request.nummeraanduidingIdentificatie, //'0518200000366054',
+    nummeraanduidingIdentificatie: request.nummeraanduidingIdentificatie,
   };
 
   await callHaalCentraal(JSON.stringify(content) );
@@ -221,10 +216,9 @@ export async function zoekMetAdresseerbaarObjectIdentificatie(request: any) {
 
   const content = {
     type: 'ZoekMetAdresseerbaarObjectIdentificatie',
-    fields: request.fields, //['aNummer', 'adressering', 'burgerservicenummer', 'datumEersteInschrijvingGBA', 'datumInschrijvingInGemeente', 'europeesKiesrecht', 'geboorte', 'gemeenteVanInschrijving', 'geslacht', 'gezag', 'immigratie', 'indicatieCurateleRegister', 'indicatieGezagMinderjarige', 'kinderen', 'leeftijd', 'naam', 'nationaliteiten', 'ouders', 'overlijden', 'partners', 'uitsluitingKiesrecht', 'verblijfplaats', 'verblijfstitel', 'verblijfplaatsBinnenland', 'adresseringBinnenland'],
-    gemeenteVanInschrijving: '0518',
+    fields: request.fields,
     inclusiefOverledenPersonen: true,
-    adresseerbaarObjectIdentificatie: request.adresseerbaarObjectIdentificatie, //'0226010000038820',
+    adresseerbaarObjectIdentificatie: request.adresseerbaarObjectIdentificatie,
   };
 
   await callHaalCentraal(JSON.stringify(content) );

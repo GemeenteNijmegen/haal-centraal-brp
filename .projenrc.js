@@ -2,12 +2,11 @@ const { GemeenteNijmegenCdkApp } = require('@gemeentenijmegen/projen-project-typ
 const project = new GemeenteNijmegenCdkApp({
   cdkVersion: '2.1.0',
   defaultReleaseBranch: 'main',
-  devDeps: ['@gemeentenijmegen/projen-project-type'],
+  devDeps: ['@gemeentenijmegen/projen-project-type', '@testcontainers/localstack'],
   name: 'haal-centraal-brp',
 
   deps: ['@gemeentenijmegen/aws-constructs',
     '@gemeentenijmegen/utils',
-    //'axios',
     'https',
     'aws-sdk',
     'node-fetch'], /* Runtime dependencies of this module. */

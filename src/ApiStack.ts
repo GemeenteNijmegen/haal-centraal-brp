@@ -67,26 +67,8 @@ export class ApiStack extends Stack {
     certificateKey.grantRead(personenLambda);
     certificateCa.grantRead(personenLambda);
     idTable.grantReadWriteData(personenLambda);
-    //internalBrpHaalCentraalApiKeySecret.grantRead(personenLambda);
     return personenLambda;
   }
-
-  // private authorizeToken(api: RestApi) {
-  //   const authorizerLambda = new AuthorizerFunction(this, 'authorizerfunction');
-
-  //   authorizerLambda.addPermission('ApiGatewayInvokeLambda', {
-  //     principal: new aws_iam.ServicePrincipal('apigateway.amazonaws.com'),
-  //     sourceArn: api.arnForExecuteApi(),
-  //     action: 'lambda:InvokeFunction',
-  //   });
-
-  //   const authToken = new TokenAuthorizer(this, 'requestauthorizer', {
-  //     handler: authorizerLambda,
-  //     identitySource: IdentitySource.header('Authorization'),
-  //   });
-
-  //   return authToken;
-  // }
 
   private api(cert: Certificate) {
     const truststore = new aws_s3.Bucket(this, 'truststore-certs-bucket-api', {
