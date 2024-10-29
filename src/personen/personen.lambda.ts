@@ -3,7 +3,7 @@ import { Bsn, AWS } from '@gemeentenijmegen/utils';
 import { DynamoDB } from 'aws-sdk';
 import nodefetch from 'node-fetch';
 
-export async function handler (event: any, _context: any):Promise<any> {
+export async function handler (event: any, _context: any, callback: any):Promise<any> {
   const request = JSON.parse(event.body);
   const apiKey = event.requestContext.identity.apiKey;
 
@@ -41,7 +41,9 @@ export async function handler (event: any, _context: any):Promise<any> {
     //       headers: { 'Content-Type': 'text/plain' },
     //     };
     // }
-    await zoek(request);
+    const response = await zoek(request);
+    callback(null, response);
+
   } else {
     return {
       statusCode: '403', //Forbidden
@@ -66,9 +68,6 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
       id: apiKey,
     },
   }).promise();
-
-  console.log(data.Item?.fields);
-  console.log(data.Item?.fields.values);
 
   return data.Item?.fields.values; // Returns a list of all allowed fields
 }
@@ -102,10 +101,11 @@ export async function callHaalCentraal(content: string) {
     },
   );
 
-  const data = await resp.json();
+  const data = resp.json();
   console.log(data);
+
   return {
-    statusCode: await resp.status,
+    statusCode: resp.status,
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },
   };
