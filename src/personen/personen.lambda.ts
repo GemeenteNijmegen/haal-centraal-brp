@@ -120,13 +120,15 @@ export async function zoek(request: any) {
     ...(request.gemeenteVanInschrijving && { gemeenteVanInschrijving: request.gemeenteVanInschrijving }),
     ...(request.inclusiefOverledenPersonen && { inclusiefOverledenPersonen: request.inclusiefOverledenPersonen }),
 
-    ...(request.geboortedatum && { geboortedatum: request.geboortedatum }),
+    ...(request.burgerservicenummer && { burgerservicenummer: request.burgerservicenummer }),
+
     ...(request.huisletter && { huisletter: request.huisletter }),
     ...(request.huisnummer && { huisnummer: request.huisnummer }),
     ...(request.huisnummertoevoeging && { huisnummertoevoeging: request.huisnummertoevoeging }),
     ...(request.postcode && { postcode: request.postcode }),
     ...(request.straat && { straat: request.straat }),
 
+    ...(request.geboortedatum && { geboortedatum: request.geboortedatum }),
     ...(request.geslacht && { geslacht: request.geslacht }),
     ...(request.geslachtsnaam && { geslachtsnaam: request.geslachtsnaam }),
     ...(request.voorvoegsel && { voorvoegsel: request.voorvoegsel }),
