@@ -41,9 +41,7 @@ export async function handler (event: any, _context: any, callback: any):Promise
     //       headers: { 'Content-Type': 'text/plain' },
     //     };
     // }
-    const response = await zoek(request);
-    callback(null, response);
-
+    await zoek(request);
   } else {
     return {
       statusCode: '403', //Forbidden
@@ -101,11 +99,12 @@ export async function callHaalCentraal(content: string) {
     },
   );
 
-  const data = resp.json();
+  const data = await resp.json();
   console.log(data);
+  console.log(await resp.status);
 
   return {
-    statusCode: resp.status,
+    statusCode: await resp.status,
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },
   };
