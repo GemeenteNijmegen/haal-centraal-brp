@@ -12,35 +12,36 @@ export async function handler (event: any, _context: any):Promise<any> {
   const validProfile = validateFields(request.fields, apiKey, idTable);
 
   if (await validProfile) {
-    switch ( request.type ) {
-      case 'ZoekMetGeslachtsnaamEnGeboortedatum':
-        await zoekMetGeslachtsnaamEnGeboortedatum(request);
-        break;
-      case 'ZoekMetNaamEnGemeenteVanInschrijving':
-        await zoekMetNaamEnGemeenteVanInschrijving(request);
-        break;
-      case 'RaadpleegMetBurgerservicenummer':
-        return raadpleegMetBurgerservicenummer(request);
-      case 'ZoekMetPostcodeEnHuisnummer':
-        await zoekMetPostcodeEnHuisnummer(request);
-        break;
-      case 'ZoekMetStraatHuisnummerEnGemeenteVanInschrijving':
-        await zoekMetStraatHuisnummerEnGemeenteVanInschrijving(request);
-        break;
-      case 'ZoekMetNummeraanduidingIdentificatie':
-        await zoekMetNummeraanduidingIdentificatie(request);
-        break;
-      case 'ZoekMetAdresseerbaarObjectIdentificatie':
-        await zoekMetAdresseerbaarObjectIdentificatie(request);
-        break;
-      default:
-        console.log('Unknown Request Type');
-        return {
-          statusCode: '400', //Bad request
-          body: 'Unknown request type',
-          headers: { 'Content-Type': 'text/plain' },
-        };
-    }
+    // switch ( request.type ) {
+    //   case 'ZoekMetGeslachtsnaamEnGeboortedatum':
+    //     await zoekMetGeslachtsnaamEnGeboortedatum(request);
+    //     break;
+    //   case 'ZoekMetNaamEnGemeenteVanInschrijving':
+    //     await zoekMetNaamEnGemeenteVanInschrijving(request);
+    //     break;
+    //   case 'RaadpleegMetBurgerservicenummer':
+    //     return raadpleegMetBurgerservicenummer(request);
+    //   case 'ZoekMetPostcodeEnHuisnummer':
+    //     await zoekMetPostcodeEnHuisnummer(request);
+    //     break;
+    //   case 'ZoekMetStraatHuisnummerEnGemeenteVanInschrijving':
+    //     await zoekMetStraatHuisnummerEnGemeenteVanInschrijving(request);
+    //     break;
+    //   case 'ZoekMetNummeraanduidingIdentificatie':
+    //     await zoekMetNummeraanduidingIdentificatie(request);
+    //     break;
+    //   case 'ZoekMetAdresseerbaarObjectIdentificatie':
+    //     await zoekMetAdresseerbaarObjectIdentificatie(request);
+    //     break;
+    //   default:
+    //     console.log('Unknown Request Type');
+    //     return {
+    //       statusCode: '400', //Bad request
+    //       body: 'Unknown request type',
+    //       headers: { 'Content-Type': 'text/plain' },
+    //     };
+    // }
+    await zoek(request);
   } else {
     return {
       statusCode: '403', //Forbidden
@@ -111,6 +112,34 @@ export async function callHaalCentraal(content: string) {
 
 }
 
+export async function zoek(request: any) {
+
+  const content = {
+    ...(request.type && { type: request.type }),
+    ...(request.fields && { fields: request.fields }),
+    ...(request.gemeenteVanInschrijving && { gemeenteVanInschrijving: request.gemeenteVanInschrijving }),
+    ...(request.inclusiefOverledenPersonen && { inclusiefOverledenPersonen: request.inclusiefOverledenPersonen }),
+
+    ...(request.geboortedatum && { geboortedatum: request.geboortedatum }),
+    ...(request.huisletter && { huisletter: request.huisletter }),
+    ...(request.huisnummer && { huisnummer: request.huisnummer }),
+    ...(request.huisnummertoevoeging && { huisnummertoevoeging: request.huisnummertoevoeging }),
+    ...(request.postcode && { postcode: request.postcode }),
+    ...(request.straat && { straat: request.straat }),
+
+    ...(request.geslacht && { geslacht: request.geslacht }),
+    ...(request.geslachtsnaam && { geslachtsnaam: request.geslachtsnaam }),
+    ...(request.voorvoegsel && { voorvoegsel: request.voorvoegsel }),
+    ...(request.voornamen && { voornamen: request.voornamen }),
+
+    ...(request.nummeraanduidingIdentificatie && { nummeraanduidingIdentificatie: request.voornummeraanduidingIdentificatienamen }),
+    ...(request.adresseerbaarObjectIdentificatie && { adresseerbaarObjectIdentificatie: request.adresseerbaarObjectIdentificatie }),
+  };
+
+  await callHaalCentraal(JSON.stringify(content) );
+
+}
+
 export async function zoekMetGeslachtsnaamEnGeboortedatum(request: any) {
 
   const content = {
@@ -132,17 +161,16 @@ export async function zoekMetNaamEnGemeenteVanInschrijving(request: any) {
 
   const content = {
     type: 'ZoekMetNaamEnGemeenteVanInschrijving',
-    fields: request.fields,
-    gemeenteVanInschrijving: '', //TODO
-    inclusiefOverledenPersonen: true,
-    geslacht: request.geslacht,
-    geslachtsnaam: request.geslachtsnaam,
-    voorvoegsel: request.voorvoegsel,
-    voornamen: request.voornamen,
+    ...(request.fields && { fields: request.fields }),
+    ...(request.gemeenteVanInschrijving && { gemeenteVanInschrijving: request.gemeenteVanInschrijving }),
+    ...(request.inclusiefOverledenPersonen && { inclusiefOverledenPersonen: request.inclusiefOverledenPersonen }),
+    ...(request.geslacht && { geslacht: request.geslacht }),
+    ...(request.geslachtsnaam && { geslachtsnaam: request.geslachtsnaam }),
+    ...(request.voorvoegsel && { voorvoegsel: request.voorvoegsel }),
+    ...(request.voornamen && { voornamen: request.voornamen }),
   };
 
   await callHaalCentraal(JSON.stringify(content) );
-
 
 }
 
