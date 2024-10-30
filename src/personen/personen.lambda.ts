@@ -41,7 +41,7 @@ export async function handler (event: any, _context: any, callback: any):Promise
     //       headers: { 'Content-Type': 'text/plain' },
     //     };
     // }
-    await zoek(request);
+    return zoek(request);
   } else {
     return {
       statusCode: '403', //Forbidden
@@ -137,7 +137,7 @@ export async function zoek(request: any) {
     ...(request.adresseerbaarObjectIdentificatie && { adresseerbaarObjectIdentificatie: request.adresseerbaarObjectIdentificatie }),
   };
 
-  await callHaalCentraal(JSON.stringify(content) );
+  return callHaalCentraal(JSON.stringify(content) );
 
 }
 
