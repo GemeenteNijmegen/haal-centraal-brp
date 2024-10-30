@@ -55,7 +55,7 @@ export async function callHaalCentraal(content: string) {
     rejectUnauthorized: false, // TODO should be true, but this raises a 'Self-signed certificate in certificate' chain error
   });
 
-  const endpoint = process.env.LAYER7_ENDPOINT!;
+  const endpoint = await AWS.getParameter(process.env.LAYER7_ENDPOINT!);
   const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
 
   const resp = await nodefetch(
