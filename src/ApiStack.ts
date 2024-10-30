@@ -4,6 +4,7 @@ import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatem
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
+import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
@@ -44,7 +45,7 @@ export class ApiStack extends Stack {
 
   private personenFunction(idTable: Table) {
     const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
-    const layer7Endpoint = Statics.layer7EndpointName;
+    const layer7Endpoint = StringParameter.fromStringParameterName(this, 'brp-haal-centraal-layer7-eindpoint-param', Statics.layer7EndpointName);
     const certificate = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
     const certificateKey = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey);
     const certificateCa = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-ca-secret', Statics.certificateCa);
@@ -54,7 +55,7 @@ export class ApiStack extends Stack {
       memorySize: 512,
       environment: {
         BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
-        LAYER7_ENDPOINT: layer7Endpoint,
+        LAYER7_ENDPOINT: Statics.layer7EndpointName,
         CERTIFICATE: certificate.secretArn,
         CERTIFICATE_KEY: certificateKey.secretArn,
         CERTIFICATE_CA: certificateCa.secretArn,
@@ -65,6 +66,7 @@ export class ApiStack extends Stack {
     certificate.grantRead(personenLambda);
     certificateKey.grantRead(personenLambda);
     certificateCa.grantRead(personenLambda);
+    layer7Endpoint.grantRead(personenLambda);
     idTable.grantReadWriteData(personenLambda);
     return personenLambda;
   }
