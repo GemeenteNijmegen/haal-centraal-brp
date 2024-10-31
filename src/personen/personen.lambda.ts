@@ -11,9 +11,15 @@ export async function handler (event: any, _context: any):Promise<any> {
 
   const validProfile = validateFields(request.fields, apiKey, idTable);
 
+  const certKey = await AWS.getSecret(process.env.CERTIFICATE_KEY!);
+  const cert = await AWS.getSecret(process.env.CERTIFICATE!);
+  const certCa = await AWS.getSecret(process.env.CERTIFICATE_CA!);
+  const endpoint = await AWS.getParameter(process.env.LAYER7_ENDPOINT!);
+  const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
+
   if (await validProfile) {
     // Search...
-    return zoek(request);
+    return zoek(request, certKey, cert, certCa, endpoint, brpApiKey);
   } else {
     return {
       statusCode: '403', //Forbidden
@@ -42,11 +48,7 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
   return data.Item?.fields.values; // Returns a list of all allowed fields
 }
 
-export async function callHaalCentraal(content: string) {
-
-  const certKey = await AWS.getSecret(process.env.CERTIFICATE_KEY!);
-  const cert = await AWS.getSecret(process.env.CERTIFICATE!);
-  const certCa = await AWS.getSecret(process.env.CERTIFICATE_CA!);
+export async function callHaalCentraal(content: string, certKey: string, cert: string, certCa: string, endpoint: string, brpApiKey: string) {
 
   const agent = new https.Agent({
     key: certKey,
@@ -54,9 +56,6 @@ export async function callHaalCentraal(content: string) {
     ca: certCa,
     rejectUnauthorized: false, // TODO should be true, but this raises a 'Self-signed certificate in certificate' chain error
   });
-
-  const endpoint = await AWS.getParameter(process.env.LAYER7_ENDPOINT!);
-  const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
 
   const resp = await nodefetch(
     endpoint,
@@ -81,7 +80,7 @@ export async function callHaalCentraal(content: string) {
 
 }
 
-export async function zoek(request: any) {
+export async function zoek(request: any, certKey: string, cert: string, certCa: string, endpoint: string, brpApiKey: string) {
 
   const content = {
     ...(request.type && { type: request.type }),
@@ -107,6 +106,6 @@ export async function zoek(request: any) {
     ...(request.adresseerbaarObjectIdentificatie && { adresseerbaarObjectIdentificatie: request.adresseerbaarObjectIdentificatie }),
   };
 
-  return callHaalCentraal(JSON.stringify(content) );
+  return callHaalCentraal(JSON.stringify(content), certKey, cert, certCa, endpoint, brpApiKey );
 
 }
