@@ -62,12 +62,17 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
 
 export async function callHaalCentraal(content: string, secrets: any) {
 
+  var rejectUnauthorized = true;
+  if (process.env.DEV_MODE! == 'true') {
+    rejectUnauthorized = false;
+  }
+
   try {
     const agent = new https.Agent({
       key: secrets.certKey,
       cert: secrets.cert,
       ca: secrets.certCa,
-      rejectUnauthorized: false,
+      rejectUnauthorized: rejectUnauthorized,
     });
 
     const resp = await nodefetch(

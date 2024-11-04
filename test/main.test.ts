@@ -14,6 +14,7 @@ const config: Configuration = {
   branch: 'test',
   buildEnvironment: mockEnv,
   deploymentEnvironment: mockEnv,
+  devMode: true,
 };
 
 test('Snapshot', () => {
