@@ -90,7 +90,8 @@ export async function callHaalCentraal(content: string, secrets: any) {
       body: JSON.stringify(data),
       headers: { 'Content-Type': 'application/json' },
     };
-  } catch {
+  } catch (err) {
+    console.error(err);
     return {
       statusCode: 500,
       body: 'Internal Server Error',
