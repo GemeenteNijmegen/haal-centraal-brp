@@ -122,11 +122,16 @@ export class ApiStack extends Stack {
     return cert;
   }
 
+  /**
+   * Stores information about different applications that make use of this API.
+   * This includes information like the allowd Haal Centraal BRP Fields.
+   * @returns Application ID Table
+   */
   private appIdStorage() {
     const appIdStorage = new aws_dynamodb.Table(this, 'app-id-storage', {
       partitionKey: { name: 'id', type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY,
+      removalPolicy: RemovalPolicy.RETAIN,
     });
 
     return appIdStorage;

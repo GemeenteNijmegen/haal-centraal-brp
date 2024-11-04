@@ -9,17 +9,11 @@ export async function handler (event: any, _context: any):Promise<any> {
 
   const idTable = new DynamoDB.DocumentClient();
 
-  const validProfile = validateFields(request.fields, apiKey, idTable);
+  const validProfile = await validateFields(request.fields, apiKey, idTable);
 
-  const certKey = await AWS.getSecret(process.env.CERTIFICATE_KEY!);
-  const cert = await AWS.getSecret(process.env.CERTIFICATE!);
-  const certCa = await AWS.getSecret(process.env.CERTIFICATE_CA!);
-  const endpoint = await AWS.getParameter(process.env.LAYER7_ENDPOINT!);
-  const brpApiKey = await AWS.getSecret(process.env.BRP_API_KEY_ARN!);
-
-  if (await validProfile) {
+  if (validProfile) {
     // Search...
-    return zoek(request, certKey, cert, certCa, endpoint, brpApiKey);
+    return callHaalCentraal(event.body, await getSecrets());
   } else {
     return {
       statusCode: '403', //Forbidden
@@ -28,6 +22,24 @@ export async function handler (event: any, _context: any):Promise<any> {
     };
   }
 };
+
+export async function getSecrets() {
+  const [certKey, cert, certCa, endpoint, brpApiKey] = await Promise.all([
+    AWS.getSecret(process.env.CERTIFICATE_KEY!),
+    AWS.getSecret(process.env.CERTIFICATE!),
+    AWS.getSecret(process.env.CERTIFICATE_CA!),
+    AWS.getParameter(process.env.LAYER7_ENDPOINT!),
+    AWS.getSecret(process.env.BRP_API_KEY_ARN!),
+  ]);
+
+  return {
+    certKey: certKey,
+    cert: cert,
+    certCa: certCa,
+    endpoint: endpoint,
+    brpApiKey: brpApiKey,
+  };
+}
 
 export async function validateFields(receivedFields: [], applicationId: string, idTable: DynamoDB.DocumentClient) {
   const allowedFields = new Set(await getAllowedFields(applicationId, idTable));
@@ -48,64 +60,42 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
   return data.Item?.fields.values; // Returns a list of all allowed fields
 }
 
-export async function callHaalCentraal(content: string, certKey: string, cert: string, certCa: string, endpoint: string, brpApiKey: string) {
+export async function callHaalCentraal(content: string, secrets: any) {
 
-  const agent = new https.Agent({
-    key: certKey,
-    cert: cert,
-    ca: certCa,
-    rejectUnauthorized: false, // TODO should be true, but this raises a 'Self-signed certificate in certificate' chain error
-  });
+  try {
+    const agent = new https.Agent({
+      key: secrets.certKey,
+      cert: secrets.cert,
+      ca: secrets.certCa,
+      rejectUnauthorized: true,
+    });
 
-  const resp = await nodefetch(
-    endpoint,
-    {
-      method: 'POST',
-      body: content,
-      headers: {
-        'Content-type': 'application/json',
-        'X-API-KEY': brpApiKey,
+    const resp = await nodefetch(
+      secrets.endpoint,
+      {
+        method: 'POST',
+        body: content,
+        headers: {
+          'Content-type': 'application/json',
+          'X-API-KEY': secrets.brpApiKey,
+        },
+        agent: agent,
       },
-      agent: agent,
-    },
-  );
+    );
 
-  const data = await resp.json();
+    const data = await resp.json();
 
-  return {
-    statusCode: await resp.status,
-    body: JSON.stringify(data),
-    headers: { 'Content-Type': 'application/json' },
-  };
-
-}
-
-export async function zoek(request: any, certKey: string, cert: string, certCa: string, endpoint: string, brpApiKey: string) {
-
-  const content = {
-    ...(request.type && { type: request.type }),
-    ...(request.fields && { fields: request.fields }),
-    ...(request.gemeenteVanInschrijving && { gemeenteVanInschrijving: request.gemeenteVanInschrijving }),
-    ...(request.inclusiefOverledenPersonen && { inclusiefOverledenPersonen: request.inclusiefOverledenPersonen }),
-
-    ...(request.burgerservicenummer && { burgerservicenummer: request.burgerservicenummer }),
-
-    ...(request.huisletter && { huisletter: request.huisletter }),
-    ...(request.huisnummer && { huisnummer: request.huisnummer }),
-    ...(request.huisnummertoevoeging && { huisnummertoevoeging: request.huisnummertoevoeging }),
-    ...(request.postcode && { postcode: request.postcode }),
-    ...(request.straat && { straat: request.straat }),
-
-    ...(request.geboortedatum && { geboortedatum: request.geboortedatum }),
-    ...(request.geslacht && { geslacht: request.geslacht }),
-    ...(request.geslachtsnaam && { geslachtsnaam: request.geslachtsnaam }),
-    ...(request.voorvoegsel && { voorvoegsel: request.voorvoegsel }),
-    ...(request.voornamen && { voornamen: request.voornamen }),
-
-    ...(request.nummeraanduidingIdentificatie && { nummeraanduidingIdentificatie: request.voornummeraanduidingIdentificatienamen }),
-    ...(request.adresseerbaarObjectIdentificatie && { adresseerbaarObjectIdentificatie: request.adresseerbaarObjectIdentificatie }),
-  };
-
-  return callHaalCentraal(JSON.stringify(content), certKey, cert, certCa, endpoint, brpApiKey );
+    return {
+      statusCode: await resp.status,
+      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'application/json' },
+    };
+  } catch {
+    return {
+      statusCode: 500,
+      body: 'Internal Server Error',
+      headers: { 'Content-Type': 'text/plain' },
+    };
+  }
 
 }
