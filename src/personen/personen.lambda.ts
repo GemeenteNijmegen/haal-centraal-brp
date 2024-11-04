@@ -67,7 +67,7 @@ export async function callHaalCentraal(content: string, secrets: any) {
       key: secrets.certKey,
       cert: secrets.cert,
       ca: secrets.certCa,
-      rejectUnauthorized: true,
+      rejectUnauthorized: false,
     });
 
     const resp = await nodefetch(
