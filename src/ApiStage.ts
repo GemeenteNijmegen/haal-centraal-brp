@@ -17,7 +17,9 @@ export class ApiStage extends Stage {
       description: 'Haal Centraal BRP parameters',
     });
 
-    const apiStack = new ApiStack(this, 'api-stack', {});
+    const apiStack = new ApiStack(this, 'api-stack', {
+      configuration: props.configuration,
+    });
     apiStack.addDependency(paramStack);
   }
 }

@@ -6,15 +6,20 @@ import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
+import { Configurable } from './Configuration';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
 import { Statics } from './Statics';
+
+interface ApiStackProps extends Configurable, StackProps {
+
+}
 
 export class ApiStack extends Stack {
   readonly subdomain: DnsConstruct;
 
 
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
 
     this.subdomain = new DnsConstruct(this, 'subdomain', {
@@ -27,7 +32,7 @@ export class ApiStack extends Stack {
     this.addDnsRecords(api);
 
     const resource = api.root.addResource('personen');
-    const personenFunction = this.personenFunction(idTable);
+    const personenFunction = this.personenFunction(idTable, props.configuration.devMode);
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
     resource.addMethod('POST', lambdaIntegration, {
@@ -43,7 +48,7 @@ export class ApiStack extends Stack {
     });
   }
 
-  private personenFunction(idTable: Table) {
+  private personenFunction(idTable: Table, devMode: boolean) {
     const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
     const layer7Endpoint = StringParameter.fromStringParameterName(this, 'brp-haal-centraal-layer7-eindpoint-param', Statics.layer7EndpointName);
     const certificate = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
@@ -60,6 +65,7 @@ export class ApiStack extends Stack {
         CERTIFICATE_KEY: certificateKey.secretArn,
         CERTIFICATE_CA: certificateCa.secretArn,
         ID_TABLE_NAME: idTable.tableName,
+        DEV_MODE: devMode ? 'true' : 'false',
       },
     });
     brpHaalCentraalApiKeySecret.grantRead(personenLambda);
@@ -122,11 +128,16 @@ export class ApiStack extends Stack {
     return cert;
   }
 
+  /**
+   * Stores information about different applications that make use of this API.
+   * This includes information like the allowd Haal Centraal BRP Fields.
+   * @returns Application ID Table
+   */
   private appIdStorage() {
     const appIdStorage = new aws_dynamodb.Table(this, 'app-id-storage', {
       partitionKey: { name: 'id', type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST,
-      removalPolicy: RemovalPolicy.DESTROY,
+      removalPolicy: RemovalPolicy.RETAIN,
     });
 
     return appIdStorage;

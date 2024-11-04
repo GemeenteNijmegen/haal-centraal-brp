@@ -47,28 +47,7 @@
       "description": "Prepare assets",
       "steps": [
         {
-          "spawn": "bundle:authorizer/authorizer.lambda"
-        },
-        {
           "spawn": "bundle:personen/personen.lambda"
-        }
-      ]
-    },
-    "bundle:authorizer/authorizer.lambda": {
-      "name": "bundle:authorizer/authorizer.lambda",
-      "description": "Create a JavaScript bundle from src/authorizer/authorizer.lambda.ts",
-      "steps": [
-        {
-          "exec": "esbuild --bundle src/authorizer/authorizer.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/authorizer/authorizer.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
-        }
-      ]
-    },
-    "bundle:authorizer/authorizer.lambda:watch": {
-      "name": "bundle:authorizer/authorizer.lambda:watch",
-      "description": "Continuously update the JavaScript bundle from src/authorizer/authorizer.lambda.ts",
-      "steps": [
-        {
-          "exec": "esbuild --bundle src/authorizer/authorizer.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/authorizer/authorizer.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
         }
       ]
     },

@@ -16,7 +16,6 @@
     ".projen/tasks.json",
     "cdk.json",
     "LICENSE",
-    "src/authorizer/authorizer-function.ts",
     "src/personen/personen-function.ts",
     "tsconfig.dev.json",
     "tsconfig.json"
