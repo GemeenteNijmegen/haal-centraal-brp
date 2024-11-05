@@ -1,5 +1,5 @@
 import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager } from 'aws-cdk-lib';
-import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
+import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy, Deployment, Stage, DomainName, BasePathMapping } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
@@ -32,6 +32,30 @@ export class ApiStack extends Stack {
     this.addDnsRecords(api);
 
     const resource = api.root.addResource('personen');
+
+    // Create and deploy a custom stage
+    const deployment = new Deployment(this, 'api-deployment', {
+      api, // Link the deployment to the API explicitly
+    });
+
+    const stage = new Stage(this, 'api-stage', {
+      deployment,
+      stageName: 'prod',
+    });
+    api.deploymentStage = stage;
+    const customDomain = DomainName.fromDomainNameAttributes(this, 'domain-name', {
+      domainName: this.subdomain.hostedzone.zoneName,
+      domainNameAliasHostedZoneId: this.subdomain.hostedzone.hostedZoneId,
+      domainNameAliasTarget: api.domainName?.domainNameAliasDomainName ?? '',
+    });
+
+    // Attach custom domain to stage
+    new BasePathMapping(this, 'base-path-mapping', {
+      domainName: customDomain,
+      restApi: api,
+      stage: stage,
+    });
+
     const personenFunction = this.personenFunction(idTable, props.configuration.devMode);
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
