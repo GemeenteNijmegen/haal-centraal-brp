@@ -40,6 +40,13 @@ export interface Configuration {
    */
   deploymentEnvironment: Environment;
 
+  /**
+   * Dev-mode
+   *
+   * In dev-mode, we accept self-signed certificates, so this can never be active in prod!
+   */
+  devMode: boolean;
+
 }
 
 
@@ -48,6 +55,19 @@ const EnvironmentConfigurations: {[key:string]: Configuration} = {
     branch: 'development',
     buildEnvironment: Statics.gnBuildEnvironment,
     deploymentEnvironment: Statics.gnHaalCentraalBrpDevEnvironment,
+    devMode: true,
+  },
+  acceptance: {
+    branch: 'acceptance',
+    buildEnvironment: Statics.gnBuildEnvironment,
+    deploymentEnvironment: Statics.gnHaalCentraalBrpAccpEnvironment,
+    devMode: false,
+  },
+  production: {
+    branch: 'production',
+    buildEnvironment: Statics.gnBuildEnvironment,
+    deploymentEnvironment: Statics.gnHaalCentraalBrpProdEnvironment,
+    devMode: false,
   },
 };
 
@@ -65,5 +85,14 @@ export function getEnvironmentConfiguration(branchName: string): Configuration {
   if (!conf) {
     throw Error(`No configuration found for branch ${branchName}`);
   }
+  validateConfig(conf);
   return conf;
+}
+
+function validateConfig(config: Configuration) {
+  if (config.devMode) {
+    if (config.branch != 'development') {
+      throw Error('Dev mode is not allowed for environments other than dev');
+    }
+  }
 }

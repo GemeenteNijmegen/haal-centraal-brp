@@ -1,6 +1,7 @@
 import { PermissionsBoundaryAspect } from '@gemeentenijmegen/aws-constructs';
 import { Aspects, Stage, StageProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { ApiStack } from './ApiStack';
 import { Configurable } from './Configuration';
 import { ParameterStack } from './ParameterStack';
 
@@ -11,11 +12,14 @@ export class ApiStage extends Stage {
     super(scope, id, props);
     Aspects.of(this).add(new PermissionsBoundaryAspect());
 
-    new ParameterStack(this, 'params-stack', {
+    const paramStack = new ParameterStack(this, 'params-stack', {
       env: props.configuration.deploymentEnvironment,
       description: 'Haal Centraal BRP parameters',
     });
 
-    //new ApiStack(this, 'api-stack', {});
+    const apiStack = new ApiStack(this, 'api-stack', {
+      configuration: props.configuration,
+    });
+    apiStack.addDependency(paramStack);
   }
 }

@@ -5,7 +5,12 @@ const project = new GemeenteNijmegenCdkApp({
   devDeps: ['@gemeentenijmegen/projen-project-type'],
   name: 'haal-centraal-brp',
 
-  deps: ['@gemeentenijmegen/aws-constructs'], /* Runtime dependencies of this module. */
+  deps: ['@gemeentenijmegen/aws-constructs',
+    '@gemeentenijmegen/utils',
+    'https',
+    'aws-sdk',
+    'node-fetch',
+    'wrap-ansi@6'], /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
   // packageName: undefined,  /* The "name" in package.json. */
 });
