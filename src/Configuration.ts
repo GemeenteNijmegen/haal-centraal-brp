@@ -64,7 +64,7 @@ const EnvironmentConfigurations: {[key:string]: Configuration} = {
     devMode: false,
   },
   production: {
-    branch: 'production',
+    branch: 'main',
     buildEnvironment: Statics.gnBuildEnvironment,
     deploymentEnvironment: Statics.gnHaalCentraalBrpProdEnvironment,
     devMode: false,
