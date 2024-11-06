@@ -1,7 +1,7 @@
 import * as https from 'https';
-import { AWS } from '@gemeentenijmegen/utils';
 import { DynamoDB } from 'aws-sdk';
 import nodefetch from 'node-fetch';
+import { initSecrets, PersonenSecrets } from './initSecrets';
 
 export async function handler (event: any, _context: any):Promise<any> {
   const request = JSON.parse(event.body);
@@ -11,9 +11,11 @@ export async function handler (event: any, _context: any):Promise<any> {
 
   const validProfile = await validateFields(request.fields, apiKey, idTable);
 
+  const secrets = await initSecrets();
+
   if (validProfile) {
     // Search...
-    return callHaalCentraal(event.body, await getSecrets());
+    return callHaalCentraal(event.body, await getSecrets(secrets));
   } else {
     return {
       statusCode: '403', //Forbidden
@@ -23,21 +25,13 @@ export async function handler (event: any, _context: any):Promise<any> {
   }
 };
 
-export async function getSecrets() {
-  const [certKey, cert, certCa, endpoint, brpApiKey] = await Promise.all([
-    AWS.getSecret(process.env.CERTIFICATE_KEY!),
-    AWS.getSecret(process.env.CERTIFICATE!),
-    AWS.getSecret(process.env.CERTIFICATE_CA!),
-    AWS.getParameter(process.env.LAYER7_ENDPOINT!),
-    AWS.getSecret(process.env.BRP_API_KEY_ARN!),
-  ]);
-
+export async function getSecrets(secrets: PersonenSecrets) {
   return {
-    certKey: certKey,
-    cert: cert,
-    certCa: certCa,
-    endpoint: endpoint,
-    brpApiKey: brpApiKey,
+    certKey: secrets.certKey,
+    cert: secrets.cert,
+    certCa: secrets.certCa,
+    endpoint: secrets.endpoint,
+    brpApiKey: secrets.brpApiKey,
   };
 }
 
