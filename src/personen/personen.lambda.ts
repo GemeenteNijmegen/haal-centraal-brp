@@ -53,8 +53,6 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
 
 export async function callHaalCentraal(content: string, personenSecrets: PersonenSecrets) {
 
-  console.log(personenSecrets);
-
   var rejectUnauthorized = true;
   if (process.env.DEV_MODE! == 'true') {
     rejectUnauthorized = false;
