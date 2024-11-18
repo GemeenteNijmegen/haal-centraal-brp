@@ -1,9 +1,17 @@
 import * as https from 'https';
-import { AWS } from '@gemeentenijmegen/utils';
 import { DynamoDB } from 'aws-sdk';
 import nodefetch from 'node-fetch';
+import { initSecrets, PersonenSecrets } from './initSecrets';
 
-export async function handler (event: any, _context: any):Promise<any> {
+let secrets: PersonenSecrets;
+let init = initSecrets();
+
+export async function handler (event: any):Promise<any> {
+
+  if (!secrets) {
+    secrets = await init;
+  }
+
   const request = JSON.parse(event.body);
   const apiKey = event.requestContext.identity.apiKey;
 
@@ -11,9 +19,10 @@ export async function handler (event: any, _context: any):Promise<any> {
 
   const validProfile = await validateFields(request.fields, apiKey, idTable);
 
+
   if (validProfile) {
     // Search...
-    return callHaalCentraal(event.body, await getSecrets());
+    return callHaalCentraal(event.body, secrets);
   } else {
     return {
       statusCode: '403', //Forbidden
@@ -22,24 +31,6 @@ export async function handler (event: any, _context: any):Promise<any> {
     };
   }
 };
-
-export async function getSecrets() {
-  const [certKey, cert, certCa, endpoint, brpApiKey] = await Promise.all([
-    AWS.getSecret(process.env.CERTIFICATE_KEY!),
-    AWS.getSecret(process.env.CERTIFICATE!),
-    AWS.getSecret(process.env.CERTIFICATE_CA!),
-    AWS.getParameter(process.env.LAYER7_ENDPOINT!),
-    AWS.getSecret(process.env.BRP_API_KEY_ARN!),
-  ]);
-
-  return {
-    certKey: certKey,
-    cert: cert,
-    certCa: certCa,
-    endpoint: endpoint,
-    brpApiKey: brpApiKey,
-  };
-}
 
 export async function validateFields(receivedFields: [], applicationId: string, idTable: DynamoDB.DocumentClient) {
   const allowedFields = new Set(await getAllowedFields(applicationId, idTable));
@@ -60,7 +51,7 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
   return data.Item?.fields.values; // Returns a list of all allowed fields
 }
 
-export async function callHaalCentraal(content: string, secrets: any) {
+export async function callHaalCentraal(content: string, secret: any) {
 
   var rejectUnauthorized = true;
   if (process.env.DEV_MODE! == 'true') {
@@ -69,29 +60,30 @@ export async function callHaalCentraal(content: string, secrets: any) {
 
   try {
     const agent = new https.Agent({
-      key: secrets.certKey,
-      cert: secrets.cert,
-      ca: secrets.certCa,
+      key: secret.certKey,
+      cert: secret.cert,
+      ca: secret.certCa,
       rejectUnauthorized: rejectUnauthorized,
     });
 
+    // Nodefetch used for agent integration (certs and rejectUnauthorized) instead of native fetch
     const resp = await nodefetch(
-      secrets.endpoint,
+      secret.endpoint,
       {
         method: 'POST',
         body: content,
         headers: {
           'Content-type': 'application/json',
-          'X-API-KEY': secrets.brpApiKey,
+          'X-API-KEY': secret.brpApiKey,
         },
         agent: agent,
       },
     );
 
-    const data = await resp.json();
+    const data = resp.json();
 
     return {
-      statusCode: await resp.status,
+      statusCode: resp.status,
       body: JSON.stringify(data),
       headers: { 'Content-Type': 'application/json' },
     };

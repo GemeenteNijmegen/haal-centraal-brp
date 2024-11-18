@@ -55,8 +55,7 @@
     "aws-sdk": "^2.1691.0",
     "constructs": "^10.0.5",
     "https": "^1.0.0",
-    "node-fetch": "^3.3.2",
-    "wrap-ansi": "6"
+    "node-fetch": "^3.3.2"
   },
   "license": "EUPL-1.2",
   "publishConfig": {
