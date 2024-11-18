@@ -51,7 +51,7 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
   return data.Item?.fields.values; // Returns a list of all allowed fields
 }
 
-export async function callHaalCentraal(content: string, secret: any) {
+export async function callHaalCentraal(content: string, personenSecrets: PersonenSecrets) {
 
   var rejectUnauthorized = true;
   if (process.env.DEV_MODE! == 'true') {
@@ -60,21 +60,21 @@ export async function callHaalCentraal(content: string, secret: any) {
 
   try {
     const agent = new https.Agent({
-      key: secret.certKey,
-      cert: secret.cert,
-      ca: secret.certCa,
+      key: personenSecrets.certKey,
+      cert: personenSecrets.cert,
+      ca: personenSecrets.certCa,
       rejectUnauthorized: rejectUnauthorized,
     });
 
     // Nodefetch used for agent integration (certs and rejectUnauthorized) instead of native fetch
     const resp = await nodefetch(
-      secret.endpoint,
+      personenSecrets.endpoint,
       {
         method: 'POST',
         body: content,
         headers: {
           'Content-type': 'application/json',
-          'X-API-KEY': secret.brpApiKey,
+          'X-API-KEY': personenSecrets.brpApiKey,
         },
         agent: agent,
       },
