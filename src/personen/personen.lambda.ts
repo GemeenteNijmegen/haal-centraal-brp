@@ -69,6 +69,7 @@ export async function callHaalCentraal(content: string, secrets: any) {
       rejectUnauthorized: rejectUnauthorized,
     });
 
+    // Nodefetch used for agent integration (certs and rejectUnauthorized) instead of native fetch
     const resp = await nodefetch(
       secrets.endpoint,
       {
@@ -82,10 +83,10 @@ export async function callHaalCentraal(content: string, secrets: any) {
       },
     );
 
-    const data = await resp.json();
+    const data = resp.json();
 
     return {
-      statusCode: await resp.status,
+      statusCode: resp.status,
       body: JSON.stringify(data),
       headers: { 'Content-Type': 'application/json' },
     };
