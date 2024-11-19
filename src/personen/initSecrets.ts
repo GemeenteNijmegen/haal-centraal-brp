@@ -22,7 +22,7 @@ export async function initSecrets(): Promise<PersonenSecrets> {
     AWS.getSecret(env.CERTIFICATE_KEY),
     AWS.getSecret(env.CERTIFICATE),
     AWS.getSecret(env.CERTIFICATE_CA),
-    env.LAYER7_ENDPOINT,
+    AWS.getParameter(env.LAYER7_ENDPOINT),
     AWS.getSecret(env.BRP_API_KEY_ARN),
   ]);
 
