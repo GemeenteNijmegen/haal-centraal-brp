@@ -48,13 +48,21 @@ export class ApiStack extends Stack {
     });
   }
 
+  /**
+   * Function that validates the incoming profile and forwards the request.
+   * @param idTable Table containing the relevant application-ids (api keys) related to a specific set of fields.
+   * @param devMode Wether or not devmode is enabled.
+   * @returns The personen lambda
+   */
   private personenFunction(idTable: Table, devMode: boolean) {
+    // All relevant secrets and layer7 endpoint
     const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
     const layer7Endpoint = StringParameter.fromStringParameterName(this, 'brp-haal-centraal-layer7-eindpoint-param', Statics.layer7EndpointName);
     const certificate = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
     const certificateKey = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey);
     const certificateCa = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-ca-secret', Statics.certificateCa);
 
+    // Function that validates the profile and forwards the request.
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
       memorySize: 512,
@@ -77,16 +85,24 @@ export class ApiStack extends Stack {
     return personenLambda;
   }
 
+  /**
+   * API Gateway for Haal Centraal BRP.
+   * @param cert Certificate linked to custom domain
+   * @returns The gateway api.
+   */
   private api(cert: Certificate) {
+    // Truststore bucket that contains a .pem file.
     const truststore = new aws_s3.Bucket(this, 'truststore-certs-bucket-api', {
       versioned: true,
     });
 
+    // The .pem contains all certificates (including the relevant trust chain) that are allowed to make a request to the gateway.
     const deployment = new aws_s3_deployment.BucketDeployment(this, 'bucket-deployment-truststore-certs-api', {
       sources: [aws_s3_deployment.Source.asset('./src/certs/')],
       destinationBucket: truststore,
     });
 
+    // Rest API with custom domain.
     const api = new RestApi(this, 'api', {
       description: 'API Gateway for Haal Centraal BRP',
       domainName: {
@@ -104,9 +120,12 @@ export class ApiStack extends Stack {
     // Wait for deployment to be finished before creating/updating api.
     api.node.addDependency(deployment);
 
+    // Usage plan attached to the api gateway.
     const plan = api.addUsagePlan('plan', {
       description: 'internal use',
     });
+
+    // Api key attacked to the usage plan
     const key = new ApiKey(this, 'apikey', {
       description: 'Haal Centraal BRP Api Key',
     });
