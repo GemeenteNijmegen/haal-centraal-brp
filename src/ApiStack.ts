@@ -125,7 +125,7 @@ export class ApiStack extends Stack {
       description: 'internal use',
     });
 
-    // Api key attacked to the usage plan
+    // Api key attached to the usage plan
     const key = new ApiKey(this, 'apikey', {
       description: 'Haal Centraal BRP Api Key',
     });
