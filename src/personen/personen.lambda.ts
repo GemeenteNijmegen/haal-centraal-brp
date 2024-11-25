@@ -31,13 +31,25 @@ export async function handler (event: any):Promise<any> {
     };
   }
 };
-
+/**
+ * Validate if every field in the received fields is part of the allowed fields in the profile.
+ * @param receivedFields Fields received from the original request
+ * @param applicationId The application identification number (api key)
+ * @param idTable The table that contains the application ids
+ * @returns Wether or not the given fields in the request are allowed by the specific application
+ */
 export async function validateFields(receivedFields: [], applicationId: string, idTable: DynamoDB.DocumentClient) {
   const allowedFields = new Set(await getAllowedFields(applicationId, idTable));
-  const check = receivedFields.every(receivedField => allowedFields.has(receivedField)); // Validate if every field in the received fields is part of the allowed fields in the profile.
+  const check = receivedFields.every(receivedField => allowedFields.has(receivedField));
   return check;
 }
 
+/**
+ * Returns the list of all allowed fields.
+ * @param apiKey The api key part of the original request
+ * @param idTable The table that contains the application ids and related fields
+ * @returns List of all allowed fields
+ */
 export async function getAllowedFields(apiKey: string, idTable: DynamoDB.DocumentClient) {
   const tableName = process.env.ID_TABLE_NAME!;
 
@@ -48,12 +60,18 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
     },
   }).promise();
 
-  return data.Item?.fields.values; // Returns a list of all allowed fields
+  return data.Item?.fields.values;
 }
 
+/**
+ * Call the Haal Centraal endpoint.
+ * @param content Original request by the application
+ * @param personenSecrets All requered secrets for the follow-up request
+ * @returns Response to the application
+ */
 export async function callHaalCentraal(content: string, personenSecrets: PersonenSecrets) {
 
-  var rejectUnauthorized = true;
+  let rejectUnauthorized = true;
   if (process.env.DEV_MODE! == 'true') {
     rejectUnauthorized = false;
   }
