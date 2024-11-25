@@ -30,7 +30,7 @@
     "projen": "npx projen"
   },
   "devDependencies": {
-    "@gemeentenijmegen/projen-project-type": "^1.8.1",
+    "@gemeentenijmegen/projen-project-type": "^1.8.3",
     "@types/jest": "^29.5.14",
     "@types/node": "^18",
     "@typescript-eslint/eslint-plugin": "^7",
@@ -43,16 +43,16 @@
     "eslint-plugin-import": "^2.31.0",
     "jest": "^29.7.0",
     "jest-junit": "^15",
-    "projen": "^0.88.6",
+    "projen": "^0.88.9",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@gemeentenijmegen/aws-constructs": "^0.0.22",
-    "@gemeentenijmegen/utils": "^0.0.18",
+    "@gemeentenijmegen/aws-constructs": "^0.0.24",
+    "@gemeentenijmegen/utils": "^0.0.20",
     "aws-cdk-lib": "^2.1.0",
-    "aws-sdk": "^2.1691.0",
+    "aws-sdk": "^2.1692.0",
     "constructs": "^10.0.5",
     "https": "^1.0.0",
     "node-fetch": "^3.3.2"
