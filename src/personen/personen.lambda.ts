@@ -71,7 +71,7 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
  */
 export async function callHaalCentraal(content: string, personenSecrets: PersonenSecrets) {
 
-  var rejectUnauthorized = true;
+  let rejectUnauthorized = true;
   if (process.env.DEV_MODE! == 'true') {
     rejectUnauthorized = false;
   }
@@ -98,23 +98,13 @@ export async function callHaalCentraal(content: string, personenSecrets: Persone
       },
     );
 
-    var data: any;
-    const contentType = resp.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      data = await resp.json();
-      return {
-        statusCode: resp.status,
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' },
-      };
-    } else {
-      data = await resp.text();
-      return {
-        statusCode: resp.status,
-        body: data,
-        headers: { 'Content-Type': 'text/plain' },
-      };
-    }
+    const data = await resp.json();
+
+    return {
+      statusCode: resp.status,
+      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'application/json' },
+    };
   } catch (err) {
     console.error(err);
     return {
