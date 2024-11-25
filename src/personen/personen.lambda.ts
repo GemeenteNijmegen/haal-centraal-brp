@@ -100,7 +100,6 @@ export async function callHaalCentraal(content: string, personenSecrets: Persone
 
     var data: any;
     const contentType = resp.headers.get('content-type');
-    console.log(contentType);
     if (contentType && contentType.includes('application/json')) {
       data = await resp.json();
       return {
