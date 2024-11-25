@@ -79,7 +79,7 @@ export class ApiStack extends Stack {
 
   private api(cert: Certificate) {
     const truststore = new aws_s3.Bucket(this, 'truststore-certs-bucket-api', {
-      //versioned: true, TODO enable?
+      versioned: true,
     });
 
     const deployment = new aws_s3_deployment.BucketDeployment(this, 'bucket-deployment-truststore-certs-api', {
