@@ -200,7 +200,7 @@
     "@smithy/protocol-http" "^4.1.7"
     "@smithy/smithy-client" "^3.4.4"
     "@smithy/types" "^3.7.1"
-    "@smithy/url-parser" "^3.0.10"
+    "@smithy/url-parser" "^3.0.10
     "@smithy/util-base64" "^3.0.0"
     "@smithy/util-body-length-browser" "^3.0.0"
     "@smithy/util-body-length-node" "^3.0.0"
