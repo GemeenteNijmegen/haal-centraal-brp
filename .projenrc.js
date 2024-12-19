@@ -9,12 +9,18 @@ const project = new GemeenteNijmegenCdkApp({
     '@gemeentenijmegen/utils',
     'https',
     'aws-sdk',
-    'node-fetch'], /* Runtime dependencies of this module. */
+    'node-fetch',
+    'dotenv'], /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
   // packageName: undefined,  /* The "name" in package.json. */
   depsUpgradeOptions: {
     workflowOptions: {
       branches: ['development'],
+    },
+  },
+  jestOptions: {
+    jestConfig: {
+      setupFiles: ['dotenv/config'],
     },
   },
 });

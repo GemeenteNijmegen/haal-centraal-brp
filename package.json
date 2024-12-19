@@ -55,6 +55,7 @@
     "aws-cdk-lib": "^2.1.0",
     "aws-sdk": "^2.1692.0",
     "constructs": "^10.0.5",
+    "dotenv": "^16.4.7",
     "https": "^1.0.0",
     "node-fetch": "^3.3.2"
   },
@@ -65,6 +66,9 @@
   "version": "0.0.0",
   "jest": {
     "coverageProvider": "v8",
+    "setupFiles": [
+      "dotenv/config"
+    ],
     "testMatch": [
       "<rootDir>/@(src|test)/**/*(*.)@(spec|test).ts?(x)",
       "<rootDir>/@(src|test)/**/__tests__/**/*.ts?(x)"

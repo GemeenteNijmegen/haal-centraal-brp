@@ -102,6 +102,10 @@
       "type": "runtime"
     },
     {
+      "name": "dotenv",
+      "type": "runtime"
+    },
+    {
       "name": "https",
       "type": "runtime"
     },
