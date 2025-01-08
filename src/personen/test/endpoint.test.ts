@@ -10,19 +10,10 @@ describe('callHaalCentraal', () => {
       Agent: mockAgent,
     }));
 
-    //const fetchSpy = jest.spyOn(global, 'fetch');
-
     (fetch as jest.Mock).mockResolvedValueOnce({
       json: jest.fn().mockResolvedValue({ data: 'response' }),
       status: 200,
     });
-
-    // fetchSpy
-    // as any as Response
-
-    // jest.spyOn(initSecrets, '')
-    //jest.spyOn(utils, 'environmentVariables').mockReturnValue({ ...defaultEnvVars });
-    // jest.spyOn(initSecrets, 'envKeys');
 
     const secrets = {
       certKey: process.env.CERTIFICATE_KEY!,
