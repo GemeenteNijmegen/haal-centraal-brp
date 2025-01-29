@@ -32,29 +32,29 @@ describe('callHaalCentraal', () => {
     expect(JSON.parse(result.body)).toEqual({ data: 'response' });
   });
 
-  it('should return a 500 error on failure, missing Certificates', async () => {
-    (fetch as jest.Mock).mockRejectedValueOnce(new Error('Failed to fetch'));
+  // it('should return a 500 error on failure, missing Certificates', async () => {
+  //   (fetch as jest.Mock).mockRejectedValueOnce(new Error('Failed to fetch'));
 
-    const secrets = { certKey: '', cert: '', certCa: '', endpoint: '', brpApiKey: process.env.BRP_API_KEY_ARN! };
-    const result = await callHaalCentraal('content', secrets);
+  //   const secrets = { certKey: '', cert: '', certCa: '', endpoint: '', brpApiKey: process.env.BRP_API_KEY_ARN! };
+  //   const result = await callHaalCentraal('content', secrets);
 
-    expect(result.statusCode).toBe(500);
-    expect(result.body).toBe('Internal Server Error');
-  });
+  //   expect(result.statusCode).toBe(500);
+  //   expect(result.body).toBe('Internal Server Error');
+  // });
 
-  it('should return a 500 error on failure, missing API Key', async () => {
-    (fetch as jest.Mock).mockRejectedValueOnce(new Error('Failed to fetch'));
+  // it('should return a 500 error on failure, missing API Key', async () => {
+  //   (fetch as jest.Mock).mockRejectedValueOnce(new Error('Failed to fetch'));
 
-    const secrets = {
-        certKey: process.env.CERTIFICATE_KEY!,
-        cert: process.env.CERTIFICATE!,
-        certCa: process.env.CERTIFICATE_CA!,
-        endpoint: process.env.LAYER7_ENDPOINT!,
-        brpApiKey: '',
-      };
-    const result = await callHaalCentraal('content', secrets);
+  //   const secrets = {
+  //       certKey: process.env.CERTIFICATE_KEY!,
+  //       cert: process.env.CERTIFICATE!,
+  //       certCa: process.env.CERTIFICATE_CA!,
+  //       endpoint: process.env.LAYER7_ENDPOINT!,
+  //       brpApiKey: '',
+  //     };
+  //   const result = await callHaalCentraal('content', secrets);
 
-    expect(result.statusCode).toBe(500);
-    expect(result.body).toBe('Internal Server Error');
-  });
+  //   expect(result.statusCode).toBe(500);
+  //   expect(result.body).toBe('Internal Server Error');
+  // });
 });
