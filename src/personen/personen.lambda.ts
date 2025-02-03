@@ -1,6 +1,5 @@
-import * as https from 'https';
 import { DynamoDB } from 'aws-sdk';
-import nodefetch from 'node-fetch';
+import { callHaalCentraal } from './callHaalCentraal';
 import { initSecrets, PersonenSecrets } from './initSecrets';
 
 let secrets: PersonenSecrets;
@@ -22,7 +21,7 @@ export async function handler (event: any):Promise<any> {
 
   if (validProfile) {
     // Search...
-    return callHaalCentraal(event.body, secrets);
+    return callHaalCentraal(event.body, secrets); // in aparte file zetten
   } else {
     return {
       statusCode: '403', //Forbidden
@@ -38,7 +37,7 @@ export async function handler (event: any):Promise<any> {
  * @param idTable The table that contains the application ids
  * @returns Wether or not the given fields in the request are allowed by the specific application
  */
-export async function validateFields(receivedFields: [], applicationId: string, idTable: DynamoDB.DocumentClient) {
+export async function validateFields(receivedFields: string[], applicationId: string, idTable: DynamoDB.DocumentClient) {
   const allowedFields = new Set(await getAllowedFields(applicationId, idTable));
   const check = receivedFields.every(receivedField => allowedFields.has(receivedField));
   return check;
@@ -61,57 +60,4 @@ export async function getAllowedFields(apiKey: string, idTable: DynamoDB.Documen
   }).promise();
 
   return data.Item?.fields.values;
-}
-
-/**
- * Call the Haal Centraal endpoint.
- * @param content Original request by the application
- * @param personenSecrets All requered secrets for the follow-up request
- * @returns Response to the application
- */
-export async function callHaalCentraal(content: string, personenSecrets: PersonenSecrets) {
-
-  let rejectUnauthorized = true;
-  if (process.env.DEV_MODE! == 'true') {
-    rejectUnauthorized = false;
-  }
-
-  try {
-    const agent = new https.Agent({
-      key: personenSecrets.certKey,
-      cert: personenSecrets.cert,
-      ca: personenSecrets.certCa,
-      rejectUnauthorized: rejectUnauthorized,
-    });
-
-    // Nodefetch used for agent integration (certs and rejectUnauthorized) instead of native fetch
-    const resp = await nodefetch(
-      personenSecrets.endpoint,
-      {
-        method: 'POST',
-        body: content,
-        headers: {
-          'Content-type': 'application/json',
-          'X-API-KEY': personenSecrets.brpApiKey,
-        },
-        agent: agent,
-      },
-    );
-
-    const data = await resp.json();
-
-    return {
-      statusCode: resp.status,
-      body: JSON.stringify(data),
-      headers: { 'Content-Type': 'application/json' },
-    };
-  } catch (err) {
-    console.error(err);
-    return {
-      statusCode: 500,
-      body: 'Internal Server Error',
-      headers: { 'Content-Type': 'text/plain' },
-    };
-  }
-
 }
