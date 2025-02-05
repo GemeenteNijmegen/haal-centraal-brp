@@ -5,6 +5,7 @@ import { ApiGatewayV2, S3 } from 'aws-sdk';
 const api = new ApiGatewayV2();
 const s3 = new S3();
 const bucketName = process.env.CERT_BUCKET_NAME ?? '';
+const truststoreBucketName = process.env.TRUSTSTORE_BUCKET_NAME ?? '';
 const domainName = process.env.CUSTOM_DOMAIN_NAME ?? '';
 
 export async function handler(event: any): Promise<any> {
@@ -21,7 +22,7 @@ export async function handler(event: any): Promise<any> {
     const currentDomainName = await getCurrentDomainName();
     console.log('Received current domain name');
 
-    const newTrustStoreVersion = await updateTruststore(pemFilePath);
+    const newTrustStoreVersion = await updateTruststore(truststoreBucketName, pemFilePath);
     console.log('Truststore updated');
     console.log('New truststore version: ', newTrustStoreVersion);
 
@@ -97,9 +98,9 @@ export async function getCurrentDomainName(): Promise<ApiGatewayV2.GetDomainName
  * @param pemFilePath file path of the pem file
  * @returns version id of the new truststore
  */
-export async function updateTruststore(pemFilePath: string): Promise<any> {
+export async function updateTruststore(trustStoreBucketName: string, pemFilePath: string): Promise<any> {
   const params = {
-    Bucket: bucketName,
+    Bucket: trustStoreBucketName,
     Key: 'truststore.pem',
     Body: fs.createReadStream(pemFilePath),
     ContentType: 'application/x-pem-file',

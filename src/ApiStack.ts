@@ -42,7 +42,7 @@ export class ApiStack extends Stack {
     });
 
     const certificateStorage = this.certificateStorage();
-    const certificateFunction = this.certificateFunction(api, certificateStorage.bucketName);
+    const certificateFunction = this.certificateFunction(api, certificateStorage.bucketName, truststore.bucket.bucketName);
 
     const lambdaEventSource = new aws_lambda_event_sources.S3EventSourceV2(certificateStorage, {
       events: [
@@ -55,14 +55,9 @@ export class ApiStack extends Stack {
     truststore.bucket.grantReadWrite(certificateFunction); // Granting certificate function write access to the truststore bucket.
 
     // Grant the Lambda function permission to access the API Gateway
-    const domainNameArn = Stack.of(this).formatArn({
-      service: 'apigateway',
-      resource: 'domainnames',
-      resourceName: `${api.domainName?.domainName}`,
-    });
     const apiGatewayPolicy = new aws_iam.PolicyStatement({
       actions: ['apigateway:GET'],
-      resources: [domainNameArn],
+      resources: ['*'], // Wildcard since it is unclear which resource is needed. /domainnames/{domainName} is not working.
     });
     certificateFunction.addToRolePolicy(apiGatewayPolicy);
 
@@ -217,13 +212,14 @@ export class ApiStack extends Stack {
    * @param bucketName bucket name
    * @returns Function that updates the truststore in the api s3 bucket
    */
-  private certificateFunction(api: RestApi, bucketName: string) {
+  private certificateFunction(api: RestApi, bucketName: string, truststoreBucketName: string) {
     const certificateFunction = new CertificatesFunction(this, 'certificate-function', {
       memorySize: 512,
       timeout: Duration.seconds(30),
       environment: {
         CERT_BUCKET_NAME: bucketName,
         CUSTOM_DOMAIN_NAME: api.domainName?.domainName ?? '',
+        TRUSTSTORE_BUCKET_NAME: truststoreBucketName,
       },
     });
 
