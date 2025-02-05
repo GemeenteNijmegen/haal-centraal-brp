@@ -55,9 +55,14 @@ export class ApiStack extends Stack {
     truststore.bucket.grantReadWrite(certificateFunction); // Granting certificate function write access to the truststore bucket.
 
     // Grant the Lambda function permission to access the API Gateway
+    const domainNameArn = Stack.of(this).formatArn({
+      service: 'apigateway',
+      resource: 'domainnames',
+      resourceName: `${api.domainName?.domainName}`,
+    });
     const apiGatewayPolicy = new aws_iam.PolicyStatement({
       actions: ['apigateway:GET'],
-      resources: [api.arnForExecuteApi()],
+      resources: [domainNameArn],
     });
     certificateFunction.addToRolePolicy(apiGatewayPolicy);
 
