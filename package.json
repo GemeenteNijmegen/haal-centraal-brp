@@ -4,6 +4,8 @@
     "build": "npx projen build",
     "bump": "npx projen bump",
     "bundle": "npx projen bundle",
+    "bundle:certs/certificates.lambda": "npx projen bundle:certs/certificates.lambda",
+    "bundle:certs/certificates.lambda:watch": "npx projen bundle:certs/certificates.lambda:watch",
     "bundle:personen/personen.lambda": "npx projen bundle:personen/personen.lambda",
     "bundle:personen/personen.lambda:watch": "npx projen bundle:personen/personen.lambda:watch",
     "clobber": "npx projen clobber",

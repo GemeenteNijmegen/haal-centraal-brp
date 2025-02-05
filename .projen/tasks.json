@@ -47,7 +47,28 @@
       "description": "Prepare assets",
       "steps": [
         {
+          "spawn": "bundle:certs/certificates.lambda"
+        },
+        {
           "spawn": "bundle:personen/personen.lambda"
+        }
+      ]
+    },
+    "bundle:certs/certificates.lambda": {
+      "name": "bundle:certs/certificates.lambda",
+      "description": "Create a JavaScript bundle from src/certs/certificates.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+        }
+      ]
+    },
+    "bundle:certs/certificates.lambda:watch": {
+      "name": "bundle:certs/certificates.lambda:watch",
+      "description": "Continuously update the JavaScript bundle from src/certs/certificates.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
         }
       ]
     },
