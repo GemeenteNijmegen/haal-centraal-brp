@@ -1,4 +1,4 @@
-import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager, aws_lambda_event_sources } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager, aws_lambda_event_sources, aws_iam } from 'aws-cdk-lib';
 import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
@@ -54,6 +54,12 @@ export class ApiStack extends Stack {
     certificateStorage.grantRead(certificateFunction); // Granting certificate function read access to the certificate storage bucket.
     truststore.bucket.grantReadWrite(certificateFunction); // Granting certificate function write access to the truststore bucket.
 
+    // Grant the Lambda function permission to access the API Gateway
+    const apiGatewayPolicy = new aws_iam.PolicyStatement({
+      actions: ['apigateway:GET'],
+      resources: [api.arnForExecuteApi()],
+    });
+    certificateFunction.addToRolePolicy(apiGatewayPolicy);
 
   }
 
