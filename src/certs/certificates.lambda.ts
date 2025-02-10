@@ -49,6 +49,8 @@ export async function getCertificates(): Promise<Array<string>> {
   objects.forEach(async object => {
     console.log('Object:', object); // Debugging line
     if (object.Key) {
+      const pushObject = await s3.getObject({ Bucket: bucketName, Key: object.Key }).promise();
+      console.log('Push Object:', pushObject); // Debugging line
       certificates.push((await s3.getObject({ Bucket: bucketName, Key: object.Key }).promise()).Body?.toString() ?? '');
     }
   });
