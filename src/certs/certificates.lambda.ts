@@ -48,7 +48,10 @@ export async function getCertificates(): Promise<Array<string>> {
   console.log('Objects:', objects); // Debugging line
 
   objects.forEach(async object => {
-    certificates.push((await s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise()).Body?.toString() ?? '');
+    console.log('Object:', object); // Debugging line
+      const pushObject = await s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise();
+      console.log('Push Object:', pushObject); // Debugging line
+      certificates.push((await s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise()).Body?.toString() ?? '');
   });
 
   console.log('Objects:', objects) // Debugging line
