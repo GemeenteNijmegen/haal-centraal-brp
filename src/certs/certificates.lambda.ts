@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { ApiGatewayV2, S3 } from 'aws-sdk';
+import { isStringObject } from 'util/types';
 
 const api = new ApiGatewayV2();
 const s3 = new S3();
@@ -47,13 +48,10 @@ export async function getCertificates(): Promise<Array<string>> {
   console.log('Objects:', objects); // Debugging line
 
   objects.forEach(async object => {
-    console.log('Object:', object); // Debugging line
-    if (object.Key) {
-      const pushObject = await s3.getObject({ Bucket: bucketName, Key: object.Key }).promise();
-      console.log('Push Object:', pushObject); // Debugging line
-      certificates.push((await s3.getObject({ Bucket: bucketName, Key: object.Key }).promise()).Body?.toString() ?? '');
-    }
+    certificates.push((await s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise()).Body?.toString() ?? '');
   });
+
+  console.log('Objects:', objects) // Debugging line
 
   return certificates;
 }
