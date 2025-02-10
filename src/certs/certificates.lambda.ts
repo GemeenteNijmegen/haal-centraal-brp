@@ -19,14 +19,14 @@ export async function handler(event: any): Promise<any> {
     const pemFilePath = await buildNewTruststore(certificates);
     console.log('New truststore build');
 
-    const currentDomainName = await getCurrentDomainName();
-    console.log('Received current domain name');
+    const domainNameResource = await getDomainNameResource();
+    console.log('Received domain name resource');
 
     const newTrustStoreVersion = await updateTruststore(truststoreBucketName, pemFilePath);
     console.log('Truststore updated');
     console.log('New truststore version: ', newTrustStoreVersion);
 
-    await updateTruststoreVersion(currentDomainName.MutualTlsAuthentication?.TruststoreUri ?? '', newTrustStoreVersion);
+    await updateTruststoreVersion(domainNameResource.MutualTlsAuthentication?.TruststoreUri ?? '', newTrustStoreVersion);
   } catch (err) {
     console.error(err);
     throw new Error('Error updating truststore');
@@ -61,10 +61,19 @@ export async function getCertificates(): Promise<Array<string>> {
  */
 export async function buildNewTruststore(certificates: Array<string>): Promise<string> {
   try {
+    if (certificates.length === 0) {
+      throw new Error('No certificates provided');
+    }
+
     const pemContent = certificates.join('\n');
+    console.log('PEM Content:', pemContent); // Debugging line
 
     const pemFilePath = path.join('/tmp', 'truststore.pem');
     fs.writeFileSync(pemFilePath, pemContent);
+
+    // Verify file content
+    const writtenContent = fs.readFileSync(pemFilePath, 'utf8');
+    console.log('Written PEM File Content:', writtenContent); // Debugging line
 
     return pemFilePath;
   } catch (err) {
@@ -79,15 +88,15 @@ export async function buildNewTruststore(certificates: Array<string>): Promise<s
  * @param domainName domain name of the api
  * @returns current domain name
  */
-export async function getCurrentDomainName(): Promise<ApiGatewayV2.GetDomainNameResponse> {
+export async function getDomainNameResource(): Promise<ApiGatewayV2.GetDomainNameResponse> {
   try {
-    const currentDomainName = await api.getDomainName({
+    const domainNameResource = await api.getDomainName({
       DomainName: domainName,
     }).promise();
-    return currentDomainName;
+    return domainNameResource;
   } catch (err) {
     console.error(err);
-    throw new Error('Error getting domain name');
+    throw new Error('Error getting domain name resource');
   }
 }
 

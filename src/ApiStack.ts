@@ -52,7 +52,7 @@ export class ApiStack extends Stack {
     });
     certificateFunction.addEventSource(lambdaEventSource);
     certificateStorage.grantRead(certificateFunction); // Granting certificate function read access to the certificate storage bucket.
-    truststore.bucket.grantReadWrite(certificateFunction); // Granting certificate function write access to the truststore bucket.
+    truststore.bucket.grantWrite(certificateFunction); // Granting certificate function write access to the truststore bucket.
 
     // Grant the Lambda function permission to access the API Gateway
     const apiGatewayPolicy = new aws_iam.PolicyStatement({
@@ -206,8 +206,8 @@ export class ApiStack extends Stack {
   }
 
   /**
-   * On object change (created or removed) in certificate storage the lambda
-   * updates the truststore in the api s3 bucket.
+   * On object change (created or removed) in certificate storage,
+   * the lambda updates the truststore in the api s3 bucket.
    * @param api rest api
    * @param bucketName bucket name
    * @returns Function that updates the truststore in the api s3 bucket
