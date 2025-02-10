@@ -44,7 +44,7 @@ export async function handler(event: any): Promise<any> {
 export async function getCertificates(): Promise<Array<string>> {
   const certificates = new Array<string>();
   const objects = (await s3.listObjectsV2({ Bucket: bucketName }).promise()).Contents ?? [];
-  console.log("Objects:", objects); // Debugging line
+  console.log('Objects:', objects); // Debugging line
 
   objects.forEach(async object => {
     console.log('Object:', object); // Debugging line
