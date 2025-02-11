@@ -146,7 +146,10 @@ export async function updateTruststore(trustStoreBucketName: string, pemFilePath
  * @param newTruststoreVersion new truststore version
  */
 export async function updateTruststoreVersion(truststoreUri: ApiGatewayV2.UriWithLengthBetween1And2048, newTruststoreVersion: string): Promise<any> {
-  api.updateDomainName({
+  console.log('Uri: ', truststoreUri);
+  console.log('New truststore version: ', newTruststoreVersion);
+  console.log('Domain name: ', domainName);
+  const update = api.updateDomainName({
     DomainName: domainName,
     MutualTlsAuthentication: {
       TruststoreUri: truststoreUri,
@@ -160,4 +163,8 @@ export async function updateTruststoreVersion(truststoreUri: ApiGatewayV2.UriWit
       console.log(data);
     }
   });
+
+  console.log('Update: ', update);
+  console.log('Update promise: ', update.promise());
+  return update.promise();
 }
