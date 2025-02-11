@@ -7,6 +7,7 @@ const project = new GemeenteNijmegenCdkApp({
 
   deps: ['@gemeentenijmegen/aws-constructs',
     '@gemeentenijmegen/utils',
+    '@aws-sdk/client-s3',
     'https',
     'aws-sdk',
     'node-fetch',

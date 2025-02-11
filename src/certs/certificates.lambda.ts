@@ -1,10 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { isStringObject } from 'util/types';
+import { S3Client, GetObjectCommand, NoSuchKey, S3ServiceException } from '@aws-sdk/client-s3';
 import { ApiGatewayV2, S3 } from 'aws-sdk';
 
 const api = new ApiGatewayV2();
 const s3 = new S3();
+const s3client = new S3Client({ region: 'eu-central-1' });
 const bucketName = process.env.CERT_BUCKET_NAME ?? '';
 const truststoreBucketName = process.env.TRUSTSTORE_BUCKET_NAME ?? '';
 const domainName = process.env.CUSTOM_DOMAIN_NAME ?? '';
@@ -49,13 +50,33 @@ export async function getCertificates(): Promise<Array<string>> {
 
   objects.forEach(async object => {
     console.log('Object:', object); // Debugging line
+    console.log('Object Key:', object.Key); // Debugging line
+    console.log('Bucket Name:', bucketName); // Debugging line
     try {
-      await s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise().then(data => {
-        console.log('Data:', data); // Debugging line
-        certificates.push(data.Body?.toString() ?? '');
-      });
-    } catch (error) {
-      console.error(`Error fetching object ${object.Key}:`, error);
+      const response = await s3client.send(new GetObjectCommand({ Bucket: bucketName, Key: object.Key ?? '' }));
+      const str = await response.Body?.transformToString();
+      console.log('String: ' + str);
+      certificates.push(str ?? '');
+
+
+      // s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise().then(data => {
+      //   console.log('Data:', data); // Debugging line
+      //   certificates.push(data.Body?.toString() ?? '');
+      // });
+
+
+    } catch (caught) {
+      if (caught instanceof NoSuchKey) {
+        console.error(
+          `Error from S3 while getting object "${object.Key}" from "${bucketName}". No such key exists.`,
+        );
+      } else if (caught instanceof S3ServiceException) {
+        console.error(
+          `Error from S3 while getting object from ${bucketName}.  ${caught.name}: ${caught.message}`,
+        );
+      } else {
+        throw caught;
+      }
     }
     // console.log('Push Object:', pushObject); // Debugging line
     // certificates.push((await s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise()).Body?.toString() ?? '');
