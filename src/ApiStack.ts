@@ -51,7 +51,7 @@ export class ApiStack extends Stack {
       ],
     });
     certificateFunction.addEventSource(lambdaEventSource);
-    certificateStorage.grantRead(certificateFunction); // Granting certificate function read access to the certificate storage bucket.
+    certificateStorage.grantReadWrite(certificateFunction); // Granting certificate function read access to the certificate storage bucket.
     truststore.bucket.grantWrite(certificateFunction); // Granting certificate function write access to the truststore bucket.
 
     // Grant the Lambda function permission to access the API Gateway
