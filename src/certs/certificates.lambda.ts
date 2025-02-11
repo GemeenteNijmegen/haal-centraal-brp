@@ -46,39 +46,27 @@ export async function handler(event: any): Promise<any> {
 export async function getCertificates(): Promise<Array<string>> {
   const certificates = new Array<string>();
   const objects = (await s3.listObjectsV2({ Bucket: bucketName }).promise()).Contents ?? [];
-  console.log('Objects:', objects); // Debugging line
 
   for (const object of objects) {
-    console.log('Object:', object); // Debugging line
-    console.log('Object Key:', object.Key); // Debugging line
-    console.log('Bucket Name:', bucketName); // Debugging line
     try {
       const response = await s3client.send(new GetObjectCommand({ Bucket: bucketName, Key: object.Key ?? '' }));
-      const str = await response.Body?.transformToString();
-      console.log('String: ' + str);
-      certificates.push(str ?? '');
-
-      // s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise().then(data => {
-      //   console.log('Data:', data); // Debugging line
-      //   certificates.push(data.Body?.toString() ?? '');
-      // });
-
-
-    } catch (caught) {
-      if (caught instanceof NoSuchKey) {
+      const certificate = await response.Body?.transformToString();
+      if (certificate) {
+        certificates.push(certificate);
+      }
+    } catch (err) {
+      if (err instanceof NoSuchKey) {
         console.error(
           `Error from S3 while getting object "${object.Key}" from "${bucketName}". No such key exists.`,
         );
-      } else if (caught instanceof S3ServiceException) {
+      } else if (err instanceof S3ServiceException) {
         console.error(
-          `Error from S3 while getting object from ${bucketName}.  ${caught.name}: ${caught.message}`,
+          `Error from S3 while getting object from ${bucketName}.  ${err.name}: ${err.message}`,
         );
       } else {
-        throw caught;
+        throw err;
       }
     }
-    // console.log('Push Object:', pushObject); // Debugging line
-    // certificates.push((await s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise()).Body?.toString() ?? '');
   };
 
   return certificates;
@@ -96,16 +84,12 @@ export async function buildNewTruststore(certificates: Array<string>): Promise<s
     }
 
     const pemContent = certificates.join('\n');
-    console.log('PEM Content:', pemContent); // Debugging line
 
     const pemFilePath = path.join('/tmp', 'truststore.pem');
     fs.writeFileSync(pemFilePath, pemContent);
 
-    // Verify file content
-    const writtenContent = fs.readFileSync(pemFilePath, 'utf8');
-    console.log('Written PEM File Content:', writtenContent); // Debugging line
-
     return pemFilePath;
+
   } catch (err) {
     console.error(err);
     throw new Error('Error building truststore');
