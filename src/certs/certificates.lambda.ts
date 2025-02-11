@@ -48,7 +48,7 @@ export async function getCertificates(): Promise<Array<string>> {
   const objects = (await s3.listObjectsV2({ Bucket: bucketName }).promise()).Contents ?? [];
   console.log('Objects:', objects); // Debugging line
 
-  objects.forEach(async object => {
+  for (const object of objects) {
     console.log('Object:', object); // Debugging line
     console.log('Object Key:', object.Key); // Debugging line
     console.log('Bucket Name:', bucketName); // Debugging line
@@ -57,7 +57,6 @@ export async function getCertificates(): Promise<Array<string>> {
       const str = await response.Body?.transformToString();
       console.log('String: ' + str);
       certificates.push(str ?? '');
-
 
       // s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise().then(data => {
       //   console.log('Data:', data); // Debugging line
@@ -80,7 +79,7 @@ export async function getCertificates(): Promise<Array<string>> {
     }
     // console.log('Push Object:', pushObject); // Debugging line
     // certificates.push((await s3.getObject({ Bucket: bucketName, Key: object.Key ?? '' }).promise()).Body?.toString() ?? '');
-  });
+  };
 
   return certificates;
 }
