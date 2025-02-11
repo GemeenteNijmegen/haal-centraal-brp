@@ -28,7 +28,7 @@ export async function handler(event: any): Promise<any> {
     console.log('Truststore updated');
     console.log('New truststore version: ', newTrustStoreVersion);
 
-    await updateTruststoreVersion(domainNameResource.MutualTlsAuthentication?.TruststoreUri ?? '', newTrustStoreVersion);
+    await updateTruststoreVersion(domainNameResource, newTrustStoreVersion);
   } catch (err) {
     console.error(err);
     throw new Error('Error updating truststore');
@@ -145,26 +145,32 @@ export async function updateTruststore(trustStoreBucketName: string, pemFilePath
  * @param truststoreUri truststore uri
  * @param newTruststoreVersion new truststore version
  */
-export async function updateTruststoreVersion(truststoreUri: ApiGatewayV2.UriWithLengthBetween1And2048, newTruststoreVersion: string): Promise<any> {
+export async function updateTruststoreVersion(domainNameResource: ApiGatewayV2.GetDomainNameResponse, newTruststoreVersion: string): Promise<any> {
+  const truststoreUri = domainNameResource.MutualTlsAuthentication?.TruststoreUri ?? '';
+  const gatewayCertificateArn = domainNameResource.DomainNameConfigurations?.[0]?.CertificateArn ?? '';
+
   console.log('Uri: ', truststoreUri);
   console.log('New truststore version: ', newTruststoreVersion);
   console.log('Domain name: ', domainName);
-  const update = api.updateDomainName({
-    DomainName: domainName,
-    MutualTlsAuthentication: {
-      TruststoreUri: truststoreUri,
-      TruststoreVersion: newTruststoreVersion,
-    },
-  }, (err, data) => {
-    if (err) {
-      console.error(err);
-      throw new Error('Error updating truststore version');
-    } else {
-      console.log(data);
-    }
-  });
 
-  console.log('Update: ', update);
-  console.log('Update promise: ', update.promise());
-  return update.promise();
+  try {
+    const update = await api.updateDomainName({
+      DomainName: domainName,
+      DomainNameConfigurations: [
+        {
+          CertificateArn: gatewayCertificateArn,
+        },
+      ],
+      MutualTlsAuthentication: {
+        TruststoreUri: truststoreUri,
+        TruststoreVersion: newTruststoreVersion,
+      },
+    }).promise();
+
+    console.log('Update response: ', update);
+    return update;
+  } catch (err) {
+    console.error('Error updating truststore version: ', err);
+    throw new Error('Error updating truststore version');
+  }
 }
