@@ -56,7 +56,7 @@ export class ApiStack extends Stack {
 
     // Grant the Lambda function permission to access the API Gateway
     const apiGatewayPolicy = new aws_iam.PolicyStatement({
-      actions: ['apigateway:GET'],
+      actions: ['apigateway:GET', 'apigateway:PATCH'],
       resources: ['*'], // Wildcard since it is unclear which resource is needed. /domainnames/{domainName} is not working.
     });
     certificateFunction.addToRolePolicy(apiGatewayPolicy);
