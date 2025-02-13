@@ -80,6 +80,10 @@
       "type": "build"
     },
     {
+      "name": "@aws-sdk/client-s3",
+      "type": "runtime"
+    },
+    {
       "name": "@gemeentenijmegen/aws-constructs",
       "type": "runtime"
     },

@@ -58,6 +58,7 @@ junit.xml
 /cdk.out/
 .cdk.staging/
 .parcel-cache/
+!/src/certs/certificates-function.ts
 !/src/personen/personen-function.ts
 !/.github/workflows/emergency.yml
 !/.github/workflows/auto-merge.yml

@@ -1,4 +1,4 @@
-import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager, aws_lambda_event_sources, aws_iam } from 'aws-cdk-lib';
 import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
@@ -6,6 +6,7 @@ import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
+import { CertificatesFunction } from './certs/certificates-function';
 import { Configurable } from './Configuration';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
@@ -28,7 +29,8 @@ export class ApiStack extends Stack {
 
     const idTable = this.appIdStorage();
     const cert = this.cert();
-    const api = this.api(cert);
+    const truststore = this.trustStore();
+    const api = this.api(cert, truststore.bucket, truststore.deployment);
     this.addDnsRecords(api);
 
     const resource = api.root.addResource('personen');
@@ -38,6 +40,26 @@ export class ApiStack extends Stack {
     resource.addMethod('POST', lambdaIntegration, {
       apiKeyRequired: true,
     });
+
+    const certificateStorage = this.certificateStorage();
+    const certificateFunction = this.certificateFunction(api, certificateStorage.bucketName, truststore.bucket.bucketName);
+
+    const lambdaEventSource = new aws_lambda_event_sources.S3EventSourceV2(certificateStorage, {
+      events: [
+        aws_s3.EventType.OBJECT_CREATED,
+        aws_s3.EventType.OBJECT_REMOVED,
+      ],
+    });
+    certificateFunction.addEventSource(lambdaEventSource);
+    certificateStorage.grantReadWrite(certificateFunction); // Granting certificate function read and decrypt access to the certificate storage bucket.
+    truststore.bucket.grantReadWrite(certificateFunction); // Granting certificate function read and write access to the truststore bucket.
+
+    // Grant the Lambda function permission to access the API Gateway
+    const apiGatewayPolicy = new aws_iam.PolicyStatement({
+      actions: ['apigateway:GET', 'apigateway:PATCH', 'apigateway:AddCertificateToDomain', 'apigateway:RemoveCertificateFromDomain'],
+      resources: ['*'], // Wildcard since it is unclear which resource is needed. /domainnames/{domainName} is not working.
+    });
+    certificateFunction.addToRolePolicy(apiGatewayPolicy);
 
   }
 
@@ -82,7 +104,27 @@ export class ApiStack extends Stack {
     certificateCa.grantRead(personenLambda);
     layer7Endpoint.grantRead(personenLambda);
     idTable.grantReadWriteData(personenLambda);
+
     return personenLambda;
+  }
+
+  /**
+   * Creates a bucket to store the truststore certificates (.pem file).
+   * @returns Truststore bucket and deployment
+   */
+  private trustStore() {
+    // Truststore bucket that contains a .pem file.
+    const bucket = new aws_s3.Bucket(this, 'truststore-certs-bucket-api', {
+      versioned: true,
+    });
+
+    // The .pem contains all certificates (including the relevant trust chain) that are allowed to make a request to the gateway.
+    const deployment = new aws_s3_deployment.BucketDeployment(this, 'bucket-deployment-truststore-certs-api', {
+      sources: [aws_s3_deployment.Source.asset('./src/certs/deploy')],
+      destinationBucket: bucket,
+    });
+
+    return { bucket, deployment };
   }
 
   /**
@@ -90,18 +132,7 @@ export class ApiStack extends Stack {
    * @param cert Certificate linked to custom domain
    * @returns The gateway api.
    */
-  private api(cert: Certificate) {
-    // Truststore bucket that contains a .pem file.
-    const truststore = new aws_s3.Bucket(this, 'truststore-certs-bucket-api', {
-      versioned: true,
-    });
-
-    // The .pem contains all certificates (including the relevant trust chain) that are allowed to make a request to the gateway.
-    const deployment = new aws_s3_deployment.BucketDeployment(this, 'bucket-deployment-truststore-certs-api', {
-      sources: [aws_s3_deployment.Source.asset('./src/certs/')],
-      destinationBucket: truststore,
-    });
-
+  private api(cert: Certificate, truststore: aws_s3.Bucket, deployment: aws_s3_deployment.BucketDeployment) {
     // Rest API with custom domain.
     const api = new RestApi(this, 'api', {
       description: 'API Gateway for Haal Centraal BRP',
@@ -134,6 +165,7 @@ export class ApiStack extends Stack {
     plan.addApiStage({
       stage: api.deploymentStage,
     });
+
     return api;
   }
 
@@ -142,6 +174,7 @@ export class ApiStack extends Stack {
       domainName: this.subdomain.hostedzone.zoneName,
       validation: CertificateValidation.fromDns(this.subdomain.hostedzone),
     });
+
     return cert;
   }
 
@@ -158,5 +191,38 @@ export class ApiStack extends Stack {
     });
 
     return appIdStorage;
+  }
+
+  /**
+   * Creates a bucket to store the certificates.
+   * @returns Certificate storage bucket
+   */
+  private certificateStorage() {
+    const certificateStorage = new aws_s3.Bucket(this, 'certificate-storage', {
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    return certificateStorage;
+  }
+
+  /**
+   * On object change (created or removed) in certificate storage,
+   * the lambda updates the truststore in the api s3 bucket.
+   * @param api rest api
+   * @param bucketName bucket name
+   * @returns Function that updates the truststore in the api s3 bucket
+   */
+  private certificateFunction(api: RestApi, bucketName: string, truststoreBucketName: string) {
+    const certificateFunction = new CertificatesFunction(this, 'certificate-function', {
+      memorySize: 512,
+      timeout: Duration.seconds(30),
+      environment: {
+        CERT_BUCKET_NAME: bucketName,
+        CUSTOM_DOMAIN_NAME: api.domainName?.domainName ?? '',
+        TRUSTSTORE_BUCKET_NAME: truststoreBucketName,
+      },
+    });
+
+    return certificateFunction;
   }
 }
