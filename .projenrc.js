@@ -12,7 +12,6 @@ const project = new GemeenteNijmegenCdkApp({
     '@aws-sdk/lib-dynamodb',
     '@aws-sdk/client-dynamodb',
     'https',
-    'aws-sdk',
     'node-fetch',
     'dotenv'], /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
