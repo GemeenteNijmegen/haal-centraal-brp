@@ -80,7 +80,19 @@
       "type": "build"
     },
     {
+      "name": "@aws-sdk/client-apigatewayv2",
+      "type": "runtime"
+    },
+    {
+      "name": "@aws-sdk/client-dynamodb",
+      "type": "runtime"
+    },
+    {
       "name": "@aws-sdk/client-s3",
+      "type": "runtime"
+    },
+    {
+      "name": "@aws-sdk/lib-dynamodb",
       "type": "runtime"
     },
     {
