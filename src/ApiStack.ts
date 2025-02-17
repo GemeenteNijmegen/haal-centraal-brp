@@ -11,6 +11,7 @@ import { Configurable } from './Configuration';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
 import { Statics } from './Statics';
+import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
 
 interface ApiStackProps extends Configurable, StackProps {
 
@@ -60,6 +61,8 @@ export class ApiStack extends Stack {
       resources: ['*'], // Wildcard since it is unclear which resource is needed. /domainnames/{domainName} is not working.
     });
     certificateFunction.addToRolePolicy(apiGatewayPolicy);
+
+    this.createCloudWatchAlarms(personenFunction);
 
   }
 
@@ -224,5 +227,21 @@ export class ApiStack extends Stack {
     });
 
     return certificateFunction;
+  }
+
+  /**
+   * Creates a CloudWatch alarm for errors in the PersonenFunction Lambda.
+   * @param personenFunction personen function
+   */
+  private createCloudWatchAlarms(personenFunction: PersonenFunction) {
+    new ErrorMonitoringAlarm(this, 'personen-function-error-monitoring-alarm', {
+      lambda: personenFunction,
+      criticality: 'high',
+      errorRateProps: {
+        alarmThreshold: 1,
+        alarmEvaluationPeriods: 1,
+        alarmEvaluationPeriod: Duration.minutes(1),
+      }
+    });
   }
 }
