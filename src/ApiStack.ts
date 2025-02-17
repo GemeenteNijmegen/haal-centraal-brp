@@ -1,3 +1,4 @@
+import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
 import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager, aws_lambda_event_sources, aws_iam } from 'aws-cdk-lib';
 import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
@@ -11,7 +12,6 @@ import { Configurable } from './Configuration';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
 import { Statics } from './Statics';
-import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
 
 interface ApiStackProps extends Configurable, StackProps {
 
@@ -241,7 +241,7 @@ export class ApiStack extends Stack {
         alarmThreshold: 1,
         alarmEvaluationPeriods: 1,
         alarmEvaluationPeriod: Duration.minutes(1),
-      }
+      },
     });
   }
 }
