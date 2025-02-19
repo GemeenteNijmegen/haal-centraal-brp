@@ -8,8 +8,10 @@ const project = new GemeenteNijmegenCdkApp({
   deps: ['@gemeentenijmegen/aws-constructs',
     '@gemeentenijmegen/utils',
     '@aws-sdk/client-s3',
+    '@aws-sdk/client-apigatewayv2',
+    '@aws-sdk/lib-dynamodb',
+    '@aws-sdk/client-dynamodb',
     'https',
-    'aws-sdk',
     'node-fetch',
     'dotenv'], /* Runtime dependencies of this module. */
   // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */

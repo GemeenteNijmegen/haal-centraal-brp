@@ -1,10 +1,17 @@
-import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager, aws_lambda_event_sources, aws_iam } from 'aws-cdk-lib';
+//import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager, aws_lambda_event_sources, aws_iam } from 'aws-cdk-lib';
+import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
 import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { S3EventSourceV2 } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
+import { Bucket, EventType } from 'aws-cdk-lib/aws-s3';
+import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
+import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
+import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
 import { CertificatesFunction } from './certs/certificates-function';
 import { Configurable } from './Configuration';
@@ -44,10 +51,10 @@ export class ApiStack extends Stack {
     const certificateStorage = this.certificateStorage();
     const certificateFunction = this.certificateFunction(api, certificateStorage.bucketName, truststore.bucket.bucketName);
 
-    const lambdaEventSource = new aws_lambda_event_sources.S3EventSourceV2(certificateStorage, {
+    const lambdaEventSource = new S3EventSourceV2(certificateStorage, {
       events: [
-        aws_s3.EventType.OBJECT_CREATED,
-        aws_s3.EventType.OBJECT_REMOVED,
+        EventType.OBJECT_CREATED,
+        EventType.OBJECT_REMOVED,
       ],
     });
     certificateFunction.addEventSource(lambdaEventSource);
@@ -55,11 +62,13 @@ export class ApiStack extends Stack {
     truststore.bucket.grantReadWrite(certificateFunction); // Granting certificate function read and write access to the truststore bucket.
 
     // Grant the Lambda function permission to access the API Gateway
-    const apiGatewayPolicy = new aws_iam.PolicyStatement({
+    const apiGatewayPolicy = new PolicyStatement({
       actions: ['apigateway:GET', 'apigateway:PATCH', 'apigateway:AddCertificateToDomain', 'apigateway:RemoveCertificateFromDomain'],
       resources: ['*'], // Wildcard since it is unclear which resource is needed. /domainnames/{domainName} is not working.
     });
     certificateFunction.addToRolePolicy(apiGatewayPolicy);
+
+    this.createCloudWatchAlarms(personenFunction);
 
   }
 
@@ -78,11 +87,11 @@ export class ApiStack extends Stack {
    */
   private personenFunction(idTable: Table, devMode: boolean) {
     // All relevant secrets and layer7 endpoint
-    const brpHaalCentraalApiKeySecret = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
+    const brpHaalCentraalApiKeySecret = Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
     const layer7Endpoint = StringParameter.fromStringParameterName(this, 'brp-haal-centraal-layer7-eindpoint-param', Statics.layer7EndpointName);
-    const certificate = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
-    const certificateKey = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey);
-    const certificateCa = aws_secretsmanager.Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-ca-secret', Statics.certificateCa);
+    const certificate = Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
+    const certificateKey = Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey);
+    const certificateCa = Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-ca-secret', Statics.certificateCa);
 
     // Function that validates the profile and forwards the request.
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
@@ -114,13 +123,13 @@ export class ApiStack extends Stack {
    */
   private trustStore() {
     // Truststore bucket that contains a .pem file.
-    const bucket = new aws_s3.Bucket(this, 'truststore-certs-bucket-api', {
+    const bucket = new Bucket(this, 'truststore-certs-bucket-api', {
       versioned: true,
     });
 
     // The .pem contains all certificates (including the relevant trust chain) that are allowed to make a request to the gateway.
-    const deployment = new aws_s3_deployment.BucketDeployment(this, 'bucket-deployment-truststore-certs-api', {
-      sources: [aws_s3_deployment.Source.asset('./src/certs/deploy')],
+    const deployment = new BucketDeployment(this, 'bucket-deployment-truststore-certs-api', {
+      sources: [Source.asset('./src/certs/deploy')],
       destinationBucket: bucket,
     });
 
@@ -132,7 +141,7 @@ export class ApiStack extends Stack {
    * @param cert Certificate linked to custom domain
    * @returns The gateway api.
    */
-  private api(cert: Certificate, truststore: aws_s3.Bucket, deployment: aws_s3_deployment.BucketDeployment) {
+  private api(cert: Certificate, truststore: Bucket, deployment: BucketDeployment) {
     // Rest API with custom domain.
     const api = new RestApi(this, 'api', {
       description: 'API Gateway for Haal Centraal BRP',
@@ -184,7 +193,7 @@ export class ApiStack extends Stack {
    * @returns Application ID Table
    */
   private appIdStorage() {
-    const appIdStorage = new aws_dynamodb.Table(this, 'app-id-storage', {
+    const appIdStorage = new Table(this, 'app-id-storage', {
       partitionKey: { name: 'id', type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.RETAIN,
@@ -198,7 +207,7 @@ export class ApiStack extends Stack {
    * @returns Certificate storage bucket
    */
   private certificateStorage() {
-    const certificateStorage = new aws_s3.Bucket(this, 'certificate-storage', {
+    const certificateStorage = new Bucket(this, 'certificate-storage', {
       removalPolicy: RemovalPolicy.RETAIN,
     });
 
@@ -224,5 +233,16 @@ export class ApiStack extends Stack {
     });
 
     return certificateFunction;
+  }
+
+  /**
+   * Creates a CloudWatch alarm for errors in the PersonenFunction Lambda.
+   * @param personenFunction personen function
+   */
+  private createCloudWatchAlarms(personenFunction: PersonenFunction) {
+    new ErrorMonitoringAlarm(this, 'personen-function-error-monitoring-alarm', {
+      lambda: personenFunction,
+      criticality: 'high',
+    });
   }
 }

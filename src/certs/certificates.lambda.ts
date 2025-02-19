@@ -1,10 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { S3Client, GetObjectCommand, NoSuchKey, S3ServiceException } from '@aws-sdk/client-s3';
-import { ApiGatewayV2, S3 } from 'aws-sdk';
+import { ApiGatewayV2Client, GetDomainNameCommand, GetDomainNameCommandOutput, UpdateDomainNameCommand } from '@aws-sdk/client-apigatewayv2';
+import { GetObjectCommand, ListObjectsV2Command, NoSuchKey, PutObjectCommand, S3Client, S3ServiceException } from '@aws-sdk/client-s3';
 
-const api = new ApiGatewayV2();
-const s3 = new S3();
+const api = new ApiGatewayV2Client({ region: 'eu-central-1' });
 const s3client = new S3Client({ region: 'eu-central-1' });
 const bucketName = process.env.CERT_BUCKET_NAME ?? '';
 const truststoreBucketName = process.env.TRUSTSTORE_BUCKET_NAME ?? '';
@@ -45,7 +44,9 @@ export async function handler(event: any): Promise<any> {
  */
 export async function getCertificates(): Promise<Array<string>> {
   const certificates = new Array<string>();
-  const objects = (await s3.listObjectsV2({ Bucket: bucketName }).promise()).Contents ?? [];
+  const listObjectsResponse = await s3client.send(new ListObjectsV2Command({ Bucket: bucketName }));
+  console.log(listObjectsResponse);
+  const objects = listObjectsResponse?.Contents ?? [];
 
   for (const object of objects) {
     try {
@@ -102,11 +103,11 @@ export async function buildNewTruststore(certificates: Array<string>): Promise<s
  * @param domainName domain name of the api
  * @returns current domain name
  */
-export async function getDomainNameResource(): Promise<ApiGatewayV2.GetDomainNameResponse> {
+export async function getDomainNameResource(): Promise<GetDomainNameCommandOutput> {
   try {
-    const domainNameResource = await api.getDomainName({
+    const domainNameResource = await api.send(new GetDomainNameCommand({
       DomainName: domainName,
-    }).promise();
+    }));
     return domainNameResource;
   } catch (err) {
     console.error(err);
@@ -130,7 +131,8 @@ export async function updateTruststore(trustStoreBucketName: string, pemFilePath
   };
 
   try {
-    return (await s3.putObject(params).promise()).VersionId;
+    const result = await s3client.send(new PutObjectCommand(params));
+    return result.VersionId;
   } catch (err) {
     console.error(err);
     throw new Error('Error updating truststore in S3');
@@ -145,16 +147,12 @@ export async function updateTruststore(trustStoreBucketName: string, pemFilePath
  * @param truststoreUri truststore uri
  * @param newTruststoreVersion new truststore version
  */
-export async function updateTruststoreVersion(domainNameResource: ApiGatewayV2.GetDomainNameResponse, newTruststoreVersion: string): Promise<any> {
+export async function updateTruststoreVersion(domainNameResource: GetDomainNameCommandOutput, newTruststoreVersion: string): Promise<any> {
   const truststoreUri = domainNameResource.MutualTlsAuthentication?.TruststoreUri ?? '';
   const gatewayCertificateArn = domainNameResource.DomainNameConfigurations?.[0]?.CertificateArn ?? '';
 
-  console.log('Uri: ', truststoreUri);
-  console.log('New truststore version: ', newTruststoreVersion);
-  console.log('Domain name: ', domainName);
-
   try {
-    const update = await api.updateDomainName({
+    const update = await api.send(new UpdateDomainNameCommand({
       DomainName: domainName,
       DomainNameConfigurations: [
         {
@@ -165,9 +163,8 @@ export async function updateTruststoreVersion(domainNameResource: ApiGatewayV2.G
         TruststoreUri: truststoreUri,
         TruststoreVersion: newTruststoreVersion,
       },
-    }).promise();
+    }));
 
-    console.log('Update response: ', update);
     return update;
   } catch (err) {
     console.error('Error updating truststore version: ', err);
