@@ -14,6 +14,8 @@ Create API key:
 
 De API sleutel wordt ook gebruikt als ID van de nieuwe applicatie in de velden opslag (dynamodb).
 
+Koppel de API key vervolgens aan de usage plan.
+
 ## Inrichten velden
 De velden die een applicatie mag uitvragen bij de BRP worden als een set opgeslagen in een dynamoDB tabel. In deze tabel staat het ID van de applicatie en een lijst met velden specifiek voor de desbetreffende applicatie.
 
