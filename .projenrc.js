@@ -2,10 +2,9 @@ const { GemeenteNijmegenCdkApp } = require('@gemeentenijmegen/projen-project-typ
 const project = new GemeenteNijmegenCdkApp({
   cdkVersion: '2.1.0',
   defaultReleaseBranch: 'main',
-  devDeps: ['@gemeentenijmegen/projen-project-type'],
   name: 'haal-centraal-brp',
-
-  deps: ['@gemeentenijmegen/aws-constructs',
+  deps: [
+    '@gemeentenijmegen/aws-constructs',
     '@gemeentenijmegen/utils',
     '@aws-sdk/client-s3',
     '@aws-sdk/client-apigatewayv2',
@@ -13,9 +12,13 @@ const project = new GemeenteNijmegenCdkApp({
     '@aws-sdk/client-dynamodb',
     'https',
     'node-fetch',
-    'dotenv'], /* Runtime dependencies of this module. */
-  // description: undefined,  /* The description is just a string that helps people understand the purpose of the package. */
-  // packageName: undefined,  /* The "name" in package.json. */
+    'dotenv',
+  ],
+  devDeps: [
+    'aws-sdk-client-mock',
+    'jest-aws-client-mock',
+    '@gemeentenijmegen/projen-project-type',
+  ],
   depsUpgradeOptions: {
     workflowOptions: {
       branches: ['development'],
