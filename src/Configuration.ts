@@ -50,7 +50,7 @@ export interface Configuration {
 }
 
 
-const EnvironmentConfigurations: {[key:string]: Configuration} = {
+const EnvironmentConfigurations: { [key: string]: Configuration } = {
   development: {
     branch: 'development',
     buildEnvironment: Statics.gnBuildEnvironment,
@@ -63,7 +63,7 @@ const EnvironmentConfigurations: {[key:string]: Configuration} = {
     deploymentEnvironment: Statics.gnHaalCentraalBrpAccpEnvironment,
     devMode: false,
   },
-  production: {
+  main: {
     branch: 'main',
     buildEnvironment: Statics.gnBuildEnvironment,
     deploymentEnvironment: Statics.gnHaalCentraalBrpProdEnvironment,
