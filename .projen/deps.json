@@ -33,6 +33,10 @@
       "type": "build"
     },
     {
+      "name": "aws-sdk-client-mock",
+      "type": "build"
+    },
+    {
       "name": "commit-and-tag-version",
       "version": "^12",
       "type": "build"
@@ -59,6 +63,10 @@
       "type": "build"
     },
     {
+      "name": "jest-aws-client-mock",
+      "type": "build"
+    },
+    {
       "name": "jest-junit",
       "version": "^16",
       "type": "build"
@@ -80,6 +88,22 @@
       "type": "build"
     },
     {
+      "name": "@aws-sdk/client-apigatewayv2",
+      "type": "runtime"
+    },
+    {
+      "name": "@aws-sdk/client-dynamodb",
+      "type": "runtime"
+    },
+    {
+      "name": "@aws-sdk/client-s3",
+      "type": "runtime"
+    },
+    {
+      "name": "@aws-sdk/lib-dynamodb",
+      "type": "runtime"
+    },
+    {
       "name": "@gemeentenijmegen/aws-constructs",
       "type": "runtime"
     },
@@ -90,10 +114,6 @@
     {
       "name": "aws-cdk-lib",
       "version": "^2.1.0",
-      "type": "runtime"
-    },
-    {
-      "name": "aws-sdk",
       "type": "runtime"
     },
     {
