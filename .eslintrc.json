@@ -148,7 +148,6 @@
         "devDependencies": [
           "**/test/**",
           "**/build-tools/**",
-          "src/certs/certificates.lambda.ts",
           "src/personen/personen.lambda.ts"
         ],
         "optionalDependencies": false,
