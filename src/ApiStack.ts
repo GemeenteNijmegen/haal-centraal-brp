@@ -68,7 +68,7 @@ export class ApiStack extends Stack {
     });
     certificateFunction.addToRolePolicy(apiGatewayPolicy);
 
-    this.createCloudWatchAlarms(personenFunction);
+    this.createCloudWatchAlarms(personenFunction, certificateFunction);
 
   }
 
@@ -239,9 +239,13 @@ export class ApiStack extends Stack {
    * Creates a CloudWatch alarm for errors in the PersonenFunction Lambda.
    * @param personenFunction personen function
    */
-  private createCloudWatchAlarms(personenFunction: PersonenFunction) {
+  private createCloudWatchAlarms(personenFunction: PersonenFunction, certificateFunction: CertificatesFunction) {
     new ErrorMonitoringAlarm(this, 'personen-function-error-monitoring-alarm', {
       lambda: personenFunction,
+      criticality: 'high',
+    });
+    new ErrorMonitoringAlarm(this, 'certificate-function-error-monitoring-alarm', {
+      lambda: certificateFunction,
       criticality: 'high',
     });
   }
