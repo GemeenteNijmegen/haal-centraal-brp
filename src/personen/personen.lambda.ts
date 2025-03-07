@@ -1,34 +1,63 @@
+import { Tracer } from '@aws-lambda-powertools/tracer';
 import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
+import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from './callHaalCentraal';
 import { initSecrets, PersonenSecrets } from './initSecrets';
 
 let secrets: PersonenSecrets;
 let init = initSecrets();
+let tracer: Tracer | undefined;
 const dynamodb = new DynamoDBClient();
 
+if (process.env.TRACING_ENABLED) {
+  tracer = new Tracer({ serviceName: 'haalcentraal-personen', captureHTTPsRequests: true });
+}
 
 export async function handler(event: any): Promise<any> {
-
-  if (!secrets) {
-    secrets = await init;
+  const segment = tracer?.getSegment(); // This is the facade segment (the one that is created by AWS Lambda)
+  let subsegment: Subsegment | undefined;
+  if (tracer && segment) {
+    // Create subsegment for the function & set it as active
+    subsegment = segment.addNewSubsegment(`## ${process.env._HANDLER}`);
+    tracer.setSegment(subsegment);
   }
+  tracer?.annotateColdStart();
+  tracer?.addServiceNameAnnotation();
+  try {
+    if (!secrets) {
+      secrets = await init;
+    }
 
-  const request = JSON.parse(event.body);
-  const apiKey = event.requestContext.identity.apiKey;
+    const request = JSON.parse(event.body);
+    const apiKey = event.requestContext.identity.apiKey;
+
+    const validProfile = await validateFields(request.fields, apiKey);
 
 
-  const validProfile = await validateFields(request.fields, apiKey);
-
-
-  if (validProfile) {
-    // Search...
-    return callHaalCentraal(event.body, secrets); // in aparte file zetten
-  } else {
+    if (validProfile) {
+      // Search...
+      return await callHaalCentraal(event.body, secrets); // in aparte file zetten
+    } else {
+      return {
+        statusCode: '403', //Forbidden
+        body: 'Mismatch in application/profile',
+        headers: { 'Content-Type': 'text/plain' },
+      };
+    }
+  } catch (error) {
+    console.error(error);
     return {
-      statusCode: '403', //Forbidden
-      body: 'Mismatch in application/profile',
+      statusCode: 500,
+      body: 'Internal Server Error',
       headers: { 'Content-Type': 'text/plain' },
     };
+  } finally {
+    if (segment && subsegment) {
+      // Close subsegment (the AWS Lambda one is closed automatically)
+      subsegment.close();
+      // Set back the facade segment as active again
+      tracer?.setSegment(segment);
+    }
   }
 }
 /**

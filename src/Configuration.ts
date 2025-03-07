@@ -47,6 +47,13 @@ export interface Configuration {
    */
   devMode: boolean;
 
+  /**
+   * Tracing
+   *
+   * Use AWS X-ray tracing functionality
+   */
+  tracing?: boolean;
+
 }
 
 
@@ -56,6 +63,7 @@ const EnvironmentConfigurations: { [key: string]: Configuration } = {
     buildEnvironment: Statics.gnBuildEnvironment,
     deploymentEnvironment: Statics.gnHaalCentraalBrpDevEnvironment,
     devMode: true,
+    tracing: true,
   },
   acceptance: {
     branch: 'acceptance',
