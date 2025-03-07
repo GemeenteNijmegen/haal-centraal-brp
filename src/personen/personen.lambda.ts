@@ -52,7 +52,7 @@ export async function handler(event: any): Promise<any> {
       headers: { 'Content-Type': 'text/plain' },
     };
   } finally {
-    if (segment && subsegment) {
+    if (tracer && segment && subsegment) {
       // Close subsegment (the AWS Lambda one is closed automatically)
       subsegment.close();
       // Set back the facade segment as active again
