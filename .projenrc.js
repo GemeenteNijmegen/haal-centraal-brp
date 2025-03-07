@@ -13,6 +13,8 @@ const project = new GemeenteNijmegenCdkApp({
     'https',
     'node-fetch',
     'dotenv',
+    '@aws-lambda-powertools/tracer',
+    '@aws-lambda-powertools/logger',
   ],
   devDeps: [
     'aws-sdk-client-mock',

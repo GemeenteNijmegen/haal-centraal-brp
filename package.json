@@ -54,6 +54,8 @@
     "typescript": "^5.7.3"
   },
   "dependencies": {
+    "@aws-lambda-powertools/logger": "^2.16.0",
+    "@aws-lambda-powertools/tracer": "^2.16.0",
     "@aws-sdk/client-apigatewayv2": "^3.750.0",
     "@aws-sdk/client-dynamodb": "^3.751.0",
     "@aws-sdk/client-s3": "^3.750.0",
