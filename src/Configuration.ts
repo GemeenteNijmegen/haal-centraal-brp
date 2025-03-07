@@ -70,6 +70,7 @@ const EnvironmentConfigurations: { [key: string]: Configuration } = {
     buildEnvironment: Statics.gnBuildEnvironment,
     deploymentEnvironment: Statics.gnHaalCentraalBrpAccpEnvironment,
     devMode: false,
+    tracing: true,
   },
   main: {
     branch: 'main',
