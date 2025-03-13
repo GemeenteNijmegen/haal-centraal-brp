@@ -77,6 +77,7 @@ const EnvironmentConfigurations: { [key: string]: Configuration } = {
     buildEnvironment: Statics.gnBuildEnvironment,
     deploymentEnvironment: Statics.gnHaalCentraalBrpProdEnvironment,
     devMode: false,
+    tracing: true,
   },
 };
 
