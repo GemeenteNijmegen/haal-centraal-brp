@@ -3,7 +3,8 @@ import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
 import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { ManagedPolicy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { ApplicationLogLevel, LoggingFormat, SystemLogLevel, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { S3EventSourceV2 } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
@@ -14,7 +15,7 @@ import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
 import { CertificatesFunction } from './certs/certificates-function';
-import { Configurable } from './Configuration';
+import { Configurable, Configuration } from './Configuration';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
 import { Statics } from './Statics';
@@ -25,10 +26,12 @@ interface ApiStackProps extends Configurable, StackProps {
 
 export class ApiStack extends Stack {
   readonly subdomain: DnsConstruct;
-
+  private configuration: Configuration;
 
   constructor(scope: Construct, id: string, props: ApiStackProps) {
     super(scope, id, props);
+
+    this.configuration = props.configuration;
 
     this.subdomain = new DnsConstruct(this, 'subdomain', {
       subdomain: 'api',
@@ -96,7 +99,7 @@ export class ApiStack extends Stack {
     // Function that validates the profile and forwards the request.
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
-      memorySize: 512,
+      memorySize: 1024,
       environment: {
         BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
         LAYER7_ENDPOINT: Statics.layer7EndpointName,
@@ -105,8 +108,21 @@ export class ApiStack extends Stack {
         CERTIFICATE_CA: certificateCa.secretArn,
         ID_TABLE_NAME: idTable.tableName,
         DEV_MODE: devMode ? 'true' : 'false',
+        TRACING_ENABLED: this.configuration.tracing ? 'true' : 'false',
+        AWS_XRAY_DEBUG_MODE: this.configuration.branch == 'development' ? 'TRUE' : 'FALSE',
+        AWS_XRAY_LOG_LEVEL: this.configuration.branch == 'development' ? SystemLogLevel.DEBUG : SystemLogLevel.INFO,
+        DEBUG: this.configuration.devMode ? 'true' : 'false',
       },
+      tracing: this.configuration.tracing ? Tracing.ACTIVE : Tracing.DISABLED,
+      loggingFormat: LoggingFormat.JSON,
+      systemLogLevelV2: this.configuration.devMode ? SystemLogLevel.DEBUG : SystemLogLevel.INFO,
+      applicationLogLevelV2: this.configuration.devMode ? ApplicationLogLevel.DEBUG : ApplicationLogLevel.INFO,
     });
+
+    if (this.configuration.tracing) {
+      personenLambda.role?.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('AWSXRayDaemonWriteAccess'));
+    }
+
     brpHaalCentraalApiKeySecret.grantRead(personenLambda);
     certificate.grantRead(personenLambda);
     certificateKey.grantRead(personenLambda);
@@ -155,6 +171,9 @@ export class ApiStack extends Stack {
         },
       },
       disableExecuteApiEndpoint: true,
+      deployOptions: {
+        tracingEnabled: this.configuration.tracing,
+      },
     });
 
     // Wait for deployment to be finished before creating/updating api.
