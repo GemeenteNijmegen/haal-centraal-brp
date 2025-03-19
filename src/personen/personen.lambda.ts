@@ -23,6 +23,11 @@ export async function handler(event: any): Promise<any> {
   }
   tracer?.annotateColdStart();
   tracer?.addServiceNameAnnotation();
+
+  // Add the API key as an annotation
+  const apiKeyId = event.requestContext.identity.apiKeyId;
+  tracer?.putAnnotation('API Key ID', apiKeyId);
+
   try {
     if (!secrets) {
       secrets = await init;
@@ -32,7 +37,6 @@ export async function handler(event: any): Promise<any> {
     const apiKey = event.requestContext.identity.apiKey;
 
     const validProfile = await validateFields(request.fields, apiKey);
-
 
     if (validProfile) {
       // Search...
