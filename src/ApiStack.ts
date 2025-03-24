@@ -111,6 +111,7 @@ export class ApiStack extends Stack {
         TRACING_ENABLED: this.configuration.tracing ? 'true' : 'false',
         AWS_XRAY_DEBUG_MODE: this.configuration.branch == 'development' ? 'TRUE' : 'FALSE',
         AWS_XRAY_LOG_LEVEL: this.configuration.branch == 'development' ? SystemLogLevel.DEBUG : SystemLogLevel.INFO,
+        AWS_XRAY_CONTEXT_MISSING: 'IGNORE_ERROR',
         DEBUG: this.configuration.devMode ? 'true' : 'false',
       },
       tracing: this.configuration.tracing ? Tracing.ACTIVE : Tracing.DISABLED,
