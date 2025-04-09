@@ -158,37 +158,24 @@ export class ApiStack extends Stack {
    * @param cert Certificate linked to custom domain
    * @returns The gateway api.
    */
-  private api(cert: Certificate, truststore: Bucket, deployment: BucketDeployment, devMode: boolean) {
-
+  private api(cert: Certificate, truststore: Bucket, deployment: BucketDeployment, devmode: boolean) {
     // Rest API with custom domain.
-    const api = new RestApi(this, 'rest-api', {
+    const api = new RestApi(this, 'api', {
       description: 'API Gateway for Haal Centraal BRP',
-      disableExecuteApiEndpoint: true,
-      deployOptions: {
-        tracingEnabled: this.configuration.tracing,
-      },
-    });
-
-    // Domain name for the api gateway.
-    // In development there is no need for a truststore. This makes it easier to test.
-    // In production, the truststore is required to validate the client certificate.
-    if (devMode) {
-      api.addDomainName('domain', {
-        domainName: this.subdomain.hostedzone.zoneName,
+      domainName: {
         certificate: cert,
-        securityPolicy: SecurityPolicy.TLS_1_2,
-      });
-    } else {
-      api.addDomainName('domain', {
         domainName: this.subdomain.hostedzone.zoneName,
-        certificate: cert,
         securityPolicy: SecurityPolicy.TLS_1_2,
         mtls: {
           bucket: truststore,
           key: 'truststore.pem',
         },
-      });
-    }
+      },
+      disableExecuteApiEndpoint: !devmode, // Enable execute-api endpoint in devmode
+      deployOptions: {
+        tracingEnabled: this.configuration.tracing,
+      },
+    });
 
     // Wait for deployment to be finished before creating/updating api.
     api.node.addDependency(deployment);
