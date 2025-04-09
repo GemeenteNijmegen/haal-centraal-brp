@@ -161,7 +161,7 @@ export class ApiStack extends Stack {
   private api(cert: Certificate, truststore: Bucket, deployment: BucketDeployment, devMode: boolean) {
 
     // Rest API with custom domain.
-    const api = new RestApi(this, 'api', {
+    const api = new RestApi(this, 'rest-api', {
       description: 'API Gateway for Haal Centraal BRP',
       disableExecuteApiEndpoint: true,
       deployOptions: {
