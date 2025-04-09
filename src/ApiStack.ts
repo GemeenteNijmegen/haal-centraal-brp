@@ -40,7 +40,7 @@ export class ApiStack extends Stack {
     const idTable = this.appIdStorage();
     const cert = this.cert();
     const truststore = this.trustStore();
-    const api = this.api(cert, truststore.bucket, truststore.deployment);
+    const api = this.api(cert, truststore.bucket, truststore.deployment, props.configuration.devMode);
     this.addDnsRecords(api);
 
     const resource = api.root.addResource('personen');
@@ -158,7 +158,7 @@ export class ApiStack extends Stack {
    * @param cert Certificate linked to custom domain
    * @returns The gateway api.
    */
-  private api(cert: Certificate, truststore: Bucket, deployment: BucketDeployment) {
+  private api(cert: Certificate, truststore: Bucket, deployment: BucketDeployment, devmode: boolean) {
     // Rest API with custom domain.
     const api = new RestApi(this, 'api', {
       description: 'API Gateway for Haal Centraal BRP',
@@ -171,7 +171,7 @@ export class ApiStack extends Stack {
           key: 'truststore.pem',
         },
       },
-      disableExecuteApiEndpoint: true,
+      disableExecuteApiEndpoint: !devmode, // Enable execute-api endpoint in devmode
       deployOptions: {
         tracingEnabled: this.configuration.tracing,
       },
