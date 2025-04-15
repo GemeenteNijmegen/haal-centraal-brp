@@ -59,7 +59,7 @@
     "@aws-sdk/client-apigatewayv2": "^3.787.0",
     "@aws-sdk/client-dynamodb": "^3.788.0",
     "@aws-sdk/client-s3": "^3.787.0",
-    "@aws-sdk/lib-dynamodb": "^3.788.0",
+    "@aws-sdk/lib-dynamodb": "^3.789.0",
     "@gemeentenijmegen/aws-constructs": "^0.0.33",
     "@gemeentenijmegen/utils": "^0.0.27",
     "aws-cdk-lib": "^2.1.0",
