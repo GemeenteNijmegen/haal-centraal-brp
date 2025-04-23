@@ -59,7 +59,7 @@
       "description": "Create a JavaScript bundle from src/certs/certificates.lambda.ts",
       "steps": [
         {
-          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
         }
       ]
     },
@@ -68,7 +68,7 @@
       "description": "Continuously update the JavaScript bundle from src/certs/certificates.lambda.ts",
       "steps": [
         {
-          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
+          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
         }
       ]
     },
@@ -77,7 +77,7 @@
       "description": "Create a JavaScript bundle from src/personen/personen.lambda.ts",
       "steps": [
         {
-          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
         }
       ]
     },
@@ -86,7 +86,7 @@
       "description": "Continuously update the JavaScript bundle from src/personen/personen.lambda.ts",
       "steps": [
         {
-          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
+          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
         }
       ]
     },
