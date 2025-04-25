@@ -54,12 +54,12 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@aws-lambda-powertools/logger": "^2.18.0",
-    "@aws-lambda-powertools/tracer": "^2.18.0",
-    "@aws-sdk/client-apigatewayv2": "^3.787.0",
-    "@aws-sdk/client-dynamodb": "^3.788.0",
-    "@aws-sdk/client-s3": "^3.787.0",
-    "@aws-sdk/lib-dynamodb": "^3.789.0",
+    "@aws-lambda-powertools/logger": "^2.19.0",
+    "@aws-lambda-powertools/tracer": "^2.19.0",
+    "@aws-sdk/client-apigatewayv2": "^3.796.0",
+    "@aws-sdk/client-dynamodb": "^3.796.0",
+    "@aws-sdk/client-s3": "^3.796.0",
+    "@aws-sdk/lib-dynamodb": "^3.796.0",
     "@gemeentenijmegen/aws-constructs": "^0.0.34",
     "@gemeentenijmegen/utils": "^0.0.30",
     "aws-cdk-lib": "^2.1.0",
