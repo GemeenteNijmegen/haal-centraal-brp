@@ -153,7 +153,8 @@
           "**/test/**",
           "**/build-tools/**",
           "src/certs/certificates.lambda.ts",
-          "src/personen/personen.lambda.ts"
+          "src/personen/personen.lambda.ts",
+          "src/personen/subset/subset.lambda.ts"
         ],
         "optionalDependencies": false,
         "peerDependencies": true

@@ -8,6 +8,8 @@
     "bundle:certs/certificates.lambda:watch": "npx projen bundle:certs/certificates.lambda:watch",
     "bundle:personen/personen.lambda": "npx projen bundle:personen/personen.lambda",
     "bundle:personen/personen.lambda:watch": "npx projen bundle:personen/personen.lambda:watch",
+    "bundle:personen/subset/subset.lambda": "npx projen bundle:personen/subset/subset.lambda",
+    "bundle:personen/subset/subset.lambda:watch": "npx projen bundle:personen/subset/subset.lambda:watch",
     "clobber": "npx projen clobber",
     "compile": "npx projen compile",
     "default": "npx projen default",

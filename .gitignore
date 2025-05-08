@@ -60,6 +60,7 @@ junit.xml
 .parcel-cache/
 !/src/certs/certificates-function.ts
 !/src/personen/personen-function.ts
+!/src/personen/subset/subset-function.ts
 !/.github/workflows/emergency.yml
 !/.github/workflows/auto-merge.yml
 !/.projenrc.js
