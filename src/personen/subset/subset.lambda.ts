@@ -12,7 +12,7 @@ if (process.env.TRACING_ENABLED) {
   tracer = new Tracer({ serviceName: 'haalcentraal-personen-subset', captureHTTPsRequests: true });
 }
 
-export async function handler(event: any): Promise<any> {
+export async function handlerSubset(event: any): Promise<any> {
   const segment = tracer?.getSegment(); // This is the facade segment (the one that is created by AWS Lambda)
   let subsegment: Subsegment | undefined;
   if (tracer && segment) {
@@ -43,7 +43,8 @@ export async function handler(event: any): Promise<any> {
 
     if (validProfile) {
       // Search...
-      const body = await jsonBody(fields, event.requestContext.identity.bsn);
+      const bsn = event.pathParameters.bsn;
+      const body = await jsonBody(fields, [bsn]);
       return await callHaalCentraal(body, secrets);
     } else {
       return {
