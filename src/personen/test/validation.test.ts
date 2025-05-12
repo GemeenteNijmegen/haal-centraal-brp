@@ -1,6 +1,8 @@
 import { DynamoDBClient, GetItemCommand, GetItemCommandOutput } from '@aws-sdk/client-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
-import { getAllowedFields, handler, validateFields } from '../personen.lambda'; // Handler import done later on to mock initSecrets
+import { handler } from '../personen.lambda'; // Handler import done later on to mock initSecrets
+import { handlerSubset } from '../subset/subset.lambda';
+import { validateFields, getAllowedFields } from '../validateFields';
 
 jest.mock('node-fetch', () => jest.fn());
 jest.mock('../initSecrets'); // Set mockResolve seperately to prevent unused import
@@ -60,6 +62,22 @@ describe('handler', () => {
       requestContext: { identity: { apiKey: 'test-api-key' } },
     };
     const result = await handler(event);
+    expect(result.statusCode).toBe('403');
+    expect(result.body).toBe('Mismatch in application/profile');
+  });
+
+});
+
+describe('handlersubset', () => {
+
+  it('should return 403 for invalid fields', async () => {
+    process.env.AWS_REGION = 'eu-central-1';
+    setupGetItemResponse(['field1']);
+    const event = {
+      body: JSON.stringify({ fields: ['invalidField'] }),
+      requestContext: { identity: { apiKey: 'test-api-key' } },
+    };
+    const result = await handlerSubset(event);
     expect(result.statusCode).toBe('403');
     expect(result.body).toBe('Mismatch in application/profile');
   });
