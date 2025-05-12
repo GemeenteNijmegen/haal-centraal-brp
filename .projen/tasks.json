@@ -51,6 +51,9 @@
         },
         {
           "spawn": "bundle:personen/personen.lambda"
+        },
+        {
+          "spawn": "bundle:personen/subset/subset.lambda"
         }
       ]
     },
@@ -59,7 +62,7 @@
       "description": "Create a JavaScript bundle from src/certs/certificates.lambda.ts",
       "steps": [
         {
-          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
         }
       ]
     },
@@ -68,7 +71,7 @@
       "description": "Continuously update the JavaScript bundle from src/certs/certificates.lambda.ts",
       "steps": [
         {
-          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
+          "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
         }
       ]
     },
@@ -77,7 +80,7 @@
       "description": "Create a JavaScript bundle from src/personen/personen.lambda.ts",
       "steps": [
         {
-          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
         }
       ]
     },
@@ -86,7 +89,25 @@
       "description": "Continuously update the JavaScript bundle from src/personen/personen.lambda.ts",
       "steps": [
         {
-          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node20\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
+          "exec": "esbuild --bundle src/personen/personen.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/personen/personen.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
+        }
+      ]
+    },
+    "bundle:personen/subset/subset.lambda": {
+      "name": "bundle:personen/subset/subset.lambda",
+      "description": "Create a JavaScript bundle from src/personen/subset/subset.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/personen/subset/subset.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/personen/subset/subset.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+        }
+      ]
+    },
+    "bundle:personen/subset/subset.lambda:watch": {
+      "name": "bundle:personen/subset/subset.lambda:watch",
+      "description": "Continuously update the JavaScript bundle from src/personen/subset/subset.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/personen/subset/subset.lambda.ts --target=\"node22\" --platform=\"node\" --outfile=\"assets/personen/subset/subset.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
         }
       ]
     },

@@ -18,6 +18,7 @@
     "LICENSE",
     "src/certs/certificates-function.ts",
     "src/personen/personen-function.ts",
+    "src/personen/subset/subset-function.ts",
     "tsconfig.dev.json",
     "tsconfig.json"
   ],

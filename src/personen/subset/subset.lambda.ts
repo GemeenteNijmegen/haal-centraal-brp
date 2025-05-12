@@ -1,15 +1,15 @@
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Subsegment } from 'aws-xray-sdk-core';
-import { callHaalCentraal } from './callHaalCentraal';
-import { initSecrets, PersonenSecrets } from './initSecrets';
-import { validateFields } from './validateFields';
+import { callHaalCentraal } from '../callHaalCentraal';
+import { initSecrets, PersonenSecrets } from '../initSecrets';
+import { validateFields } from '../validateFields';
 
 let secrets: PersonenSecrets;
 let init = initSecrets();
 let tracer: Tracer | undefined;
 
 if (process.env.TRACING_ENABLED) {
-  tracer = new Tracer({ serviceName: 'haalcentraal-personen', captureHTTPsRequests: true });
+  tracer = new Tracer({ serviceName: 'haalcentraal-personen-subset', captureHTTPsRequests: true });
 }
 
 export async function handler(event: any): Promise<any> {
@@ -32,14 +32,20 @@ export async function handler(event: any): Promise<any> {
       secrets = await init;
     }
 
-    const request = JSON.parse(event.body);
-    const apiKey = event.requestContext.identity.apiKey;
+    const fields = [
+      'kinderen',
+      'leeftijd',
+      'partners',
+    ];
 
-    const validProfile = await validateFields(request.fields, apiKey);
+    const apiKey = event.requestContext.identity.apiKey;
+    const validProfile = await validateFields(fields, apiKey);
 
     if (validProfile) {
       // Search...
-      return await callHaalCentraal(event.body, secrets); // in aparte file zetten
+      const bsn = event.pathParameters.bsn;
+      const body = await jsonBody(fields, [bsn]);
+      return await callHaalCentraal(body, secrets);
     } else {
       return {
         statusCode: '403', //Forbidden
@@ -62,4 +68,13 @@ export async function handler(event: any): Promise<any> {
       tracer?.setSegment(segment);
     }
   }
+}
+
+async function jsonBody(fields: string[], bsn: string[]): Promise<string> {
+  const body = {
+    type: 'RaadpleegMetBurgerservicenummer',
+    fields: fields,
+    burgerservicenummer: bsn,
+  };
+  return JSON.stringify(body);
 }

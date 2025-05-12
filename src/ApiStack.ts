@@ -18,6 +18,7 @@ import { CertificatesFunction } from './certs/certificates-function';
 import { Configurable, Configuration } from './Configuration';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
+import { SubsetFunction } from './personen/subset/subset-function';
 import { Statics } from './Statics';
 
 interface ApiStackProps extends Configurable, StackProps {
@@ -40,14 +41,22 @@ export class ApiStack extends Stack {
     const idTable = this.appIdStorage();
     const cert = this.cert();
     const truststore = this.trustStore();
+    const environmentVariables = this.environmentVariables();
     const api = this.api(cert, truststore.bucket, truststore.deployment, props.configuration.devMode);
     this.addDnsRecords(api);
 
     const resource = api.root.addResource('personen');
-    const personenFunction = this.personenFunction(idTable, props.configuration.devMode);
+    const personenFunction = this.personenFunction(idTable, environmentVariables, props.configuration.devMode);
+    const subsetPersonenFunction = this.subsetPersonenFunction(idTable, environmentVariables, props.configuration.devMode);
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
     resource.addMethod('POST', lambdaIntegration, {
+      apiKeyRequired: true,
+    });
+
+    const bsnResource = resource.addResource('burgerservicenummer').addResource('{bsn}');
+    const subsetLambdaIntegration = new LambdaIntegration(subsetPersonenFunction);
+    bsnResource.addMethod('GET', subsetLambdaIntegration, {
       apiKeyRequired: true,
     });
 
@@ -82,30 +91,80 @@ export class ApiStack extends Stack {
     });
   }
 
+  private environmentVariables() {
+    const env = {
+      brpHaalCentraalApiKeySecret: Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret),
+      layer7Endpoint: StringParameter.fromStringParameterName(this, 'brp-haal-centraal-layer7-eindpoint-param', Statics.layer7EndpointName),
+      certificate: Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate),
+      certificateKey: Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey),
+      certificateCa: Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-ca-secret', Statics.certificateCa),
+    };
+
+    return env;
+  }
+
+  /**
+   * Function that validates the incoming profile and forwards (and returns) the request for a subset of fields.
+   * @param idTable Table containing the relevant application-ids (api keys) related to a specific set of fields.
+   * @param devMode Wether or not devmode is enabled.
+   * @returns The subset personen lambda
+   */
+  private subsetPersonenFunction(idTable: Table, environmentVariables: any, devMode: boolean) {
+
+    const subsetPersonenLambda = new SubsetFunction(this, 'subsetpersonenfunction', {
+      timeout: Duration.seconds(30),
+      memorySize: 1024,
+      environment: {
+        BRP_API_KEY_ARN: environmentVariables.brpHaalCentraalApiKeySecret.secretArn,
+        LAYER7_ENDPOINT: Statics.layer7EndpointName,
+        CERTIFICATE: environmentVariables.certificate.secretArn,
+        CERTIFICATE_KEY: environmentVariables.certificateKey.secretArn,
+        CERTIFICATE_CA: environmentVariables.certificateCa.secretArn,
+        ID_TABLE_NAME: idTable.tableName,
+        DEV_MODE: devMode ? 'true' : 'false',
+        TRACING_ENABLED: this.configuration.tracing ? 'true' : 'false',
+        AWS_XRAY_DEBUG_MODE: this.configuration.branch == 'development' ? 'TRUE' : 'FALSE',
+        AWS_XRAY_LOG_LEVEL: this.configuration.branch == 'development' ? SystemLogLevel.DEBUG : SystemLogLevel.INFO,
+        AWS_XRAY_CONTEXT_MISSING: 'IGNORE_ERROR',
+        DEBUG: this.configuration.devMode ? 'true' : 'false',
+      },
+      tracing: this.configuration.tracing ? Tracing.ACTIVE : Tracing.DISABLED,
+      loggingFormat: LoggingFormat.JSON,
+      systemLogLevelV2: this.configuration.devMode ? SystemLogLevel.DEBUG : SystemLogLevel.INFO,
+      applicationLogLevelV2: this.configuration.devMode ? ApplicationLogLevel.DEBUG : ApplicationLogLevel.INFO,
+    });
+
+    if (this.configuration.tracing) {
+      subsetPersonenLambda.role?.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('AWSXRayDaemonWriteAccess'));
+    }
+
+    environmentVariables.brpHaalCentraalApiKeySecret.grantRead(subsetPersonenLambda);
+    environmentVariables.certificate.grantRead(subsetPersonenLambda);
+    environmentVariables.certificateKey.grantRead(subsetPersonenLambda);
+    environmentVariables.certificateCa.grantRead(subsetPersonenLambda);
+    environmentVariables.layer7Endpoint.grantRead(subsetPersonenLambda);
+    idTable.grantReadWriteData(subsetPersonenLambda);
+
+    return subsetPersonenLambda;
+  }
+
   /**
    * Function that validates the incoming profile and forwards the request.
    * @param idTable Table containing the relevant application-ids (api keys) related to a specific set of fields.
    * @param devMode Wether or not devmode is enabled.
    * @returns The personen lambda
    */
-  private personenFunction(idTable: Table, devMode: boolean) {
-    // All relevant secrets and layer7 endpoint
-    const brpHaalCentraalApiKeySecret = Secret.fromSecretNameV2(this, 'brp-haal-centraal-api-key-auth-secret', Statics.haalCentraalApiKeySecret);
-    const layer7Endpoint = StringParameter.fromStringParameterName(this, 'brp-haal-centraal-layer7-eindpoint-param', Statics.layer7EndpointName);
-    const certificate = Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate);
-    const certificateKey = Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey);
-    const certificateCa = Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-ca-secret', Statics.certificateCa);
+  private personenFunction(idTable: Table, environmentVariables: any, devMode: boolean) {
 
-    // Function that validates the profile and forwards the request.
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
       memorySize: 1024,
       environment: {
-        BRP_API_KEY_ARN: brpHaalCentraalApiKeySecret.secretArn,
+        BRP_API_KEY_ARN: environmentVariables.brpHaalCentraalApiKeySecret.secretArn,
         LAYER7_ENDPOINT: Statics.layer7EndpointName,
-        CERTIFICATE: certificate.secretArn,
-        CERTIFICATE_KEY: certificateKey.secretArn,
-        CERTIFICATE_CA: certificateCa.secretArn,
+        CERTIFICATE: environmentVariables.certificate.secretArn,
+        CERTIFICATE_KEY: environmentVariables.certificateKey.secretArn,
+        CERTIFICATE_CA: environmentVariables.certificateCa.secretArn,
         ID_TABLE_NAME: idTable.tableName,
         DEV_MODE: devMode ? 'true' : 'false',
         TRACING_ENABLED: this.configuration.tracing ? 'true' : 'false',
@@ -124,11 +183,11 @@ export class ApiStack extends Stack {
       personenLambda.role?.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('AWSXRayDaemonWriteAccess'));
     }
 
-    brpHaalCentraalApiKeySecret.grantRead(personenLambda);
-    certificate.grantRead(personenLambda);
-    certificateKey.grantRead(personenLambda);
-    certificateCa.grantRead(personenLambda);
-    layer7Endpoint.grantRead(personenLambda);
+    environmentVariables.brpHaalCentraalApiKeySecret.grantRead(personenLambda);
+    environmentVariables.certificate.grantRead(personenLambda);
+    environmentVariables.certificateKey.grantRead(personenLambda);
+    environmentVariables.certificateCa.grantRead(personenLambda);
+    environmentVariables.layer7Endpoint.grantRead(personenLambda);
     idTable.grantReadWriteData(personenLambda);
 
     return personenLambda;
