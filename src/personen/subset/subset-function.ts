@@ -4,22 +4,22 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
 
 /**
- * Props for PersonenFunction
+ * Props for SubsetFunction
  */
-export interface PersonenFunctionProps extends lambda.FunctionOptions {
+export interface SubsetFunctionProps extends lambda.FunctionOptions {
 }
 
 /**
- * An AWS Lambda function which executes src/personen/personen.
+ * An AWS Lambda function which executes src/personen/subset/subset.
  */
-export class PersonenFunction extends lambda.Function {
-  constructor(scope: Construct, id: string, props?: PersonenFunctionProps) {
+export class SubsetFunction extends lambda.Function {
+  constructor(scope: Construct, id: string, props?: SubsetFunctionProps) {
     super(scope, id, {
-      description: 'src/personen/personen.lambda.ts',
+      description: 'src/personen/subset/subset.lambda.ts',
       ...props,
       runtime: new lambda.Runtime('nodejs22.x', lambda.RuntimeFamily.NODEJS),
       handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../assets/personen/personen.lambda')),
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../../assets/personen/subset/subset.lambda')),
     });
     this.addEnvironment('AWS_NODEJS_CONNECTION_REUSE_ENABLED', '1', { removeInEdge: true });
   }
