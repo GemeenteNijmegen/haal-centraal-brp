@@ -1,7 +1,7 @@
 import { DynamoDBClient, GetItemCommand, GetItemCommandOutput } from '@aws-sdk/client-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { handler } from '../personen.lambda'; // Handler import done later on to mock initSecrets
-import { handlerSubset } from '../subset/subset.lambda';
+import { handler as handlerSubset } from '../subset/subset.lambda';
 import { validateFields, getAllowedFields } from '../validateFields';
 
 jest.mock('node-fetch', () => jest.fn());
