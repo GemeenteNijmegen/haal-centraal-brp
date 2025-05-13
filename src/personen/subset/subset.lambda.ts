@@ -45,7 +45,33 @@ export async function handler(event: any): Promise<any> {
       // Search...
       const bsn = event.pathParameters.bsn;
       const body = await jsonBody(fields, [bsn]);
-      return await callHaalCentraal(body, secrets);
+      const result = await callHaalCentraal(body, secrets);
+
+      const data = JSON.parse(result.body);
+      const persoon = data.personen[0];
+      let hasKinderen = false;
+      let hasPartners = false;
+
+      if (persoon.kinderen && persoon.kinderen.length > 0) {
+        hasKinderen = true;
+      }
+
+      if (persoon.partners && persoon.partners.length > 0) {
+        hasPartners = true;
+      };
+
+      const responseBody = {
+        leeftijd: persoon.leeftijd,
+        kinderen: hasKinderen,
+        partners: hasPartners,
+      };
+
+      return {
+        statusCode: result.statusCode,
+        body: JSON.stringify(responseBody),
+        headers: { 'Content-Type': 'application/json' },
+      };
+
     } else {
       return {
         statusCode: '403', //Forbidden
