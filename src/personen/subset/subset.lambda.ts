@@ -43,7 +43,7 @@ export async function handler(event: any): Promise<any> {
 
     if (validProfile) {
       // Search...
-      const bsn = event.pathParameters.bsn;
+      const bsn = event.headers['x-bsn'];
       const body = await jsonBody(fields, [bsn]);
       const result = await callHaalCentraal(body, secrets);
 
