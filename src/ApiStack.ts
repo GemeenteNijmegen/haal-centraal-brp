@@ -54,7 +54,7 @@ export class ApiStack extends Stack {
       apiKeyRequired: true,
     });
 
-    const bsnResource = resource.addResource('burgerservicenummer').addResource('{bsn}');
+    const bsnResource = resource.addResource('burgerservicenummer');
     const subsetLambdaIntegration = new LambdaIntegration(subsetPersonenFunction);
     bsnResource.addMethod('GET', subsetLambdaIntegration, {
       apiKeyRequired: true,
