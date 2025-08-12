@@ -41,7 +41,7 @@ export async function handler(event: any): Promise<any> {
     logger.info('Request info', {
       application: apiKeyId,
       type: request.type,
-    })
+    });
 
     const validProfile = await validateFields(request.fields, apiKey);
 
