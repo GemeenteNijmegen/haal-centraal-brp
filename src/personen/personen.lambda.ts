@@ -3,7 +3,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from './callHaalCentraal';
 import { initSecrets, PersonenSecrets } from './initSecrets';
-import { validateFields } from './validateFields';
+import { getApplicationProfile, validateFields } from './validateFields';
 
 let secrets: PersonenSecrets;
 let init = initSecrets();
@@ -38,12 +38,14 @@ export async function handler(event: any): Promise<any> {
     const request = JSON.parse(event.body);
     const apiKey = event.requestContext.identity.apiKey;
 
-    logger.info('Request info', {
-      application: apiKeyId,
-      type: request.type,
-    })
+    const profile = await getApplicationProfile(apiKey);
 
-    const validProfile = await validateFields(request.fields, apiKey);
+    logger.info('Request info', {
+      application: profile.name,
+      type: request.type,
+    });
+
+    const validProfile = validateFields(request.fields, profile.fields);
 
     if (validProfile) {
       // Search...
