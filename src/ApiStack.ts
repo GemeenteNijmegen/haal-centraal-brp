@@ -113,7 +113,6 @@ export class ApiStack extends Stack {
 
     const subsetPersonenLambda = new SubsetFunction(this, 'subsetpersonenfunction', {
       timeout: Duration.seconds(30),
-      description: 'HAAL CENTRAAL Persoonen endpoint function',
       memorySize: 1024,
       environment: {
         BRP_API_KEY_ARN: environmentVariables.brpHaalCentraalApiKeySecret.secretArn,
@@ -160,6 +159,7 @@ export class ApiStack extends Stack {
     const personenLambda = new PersonenFunction(this, 'personenfunction', {
       timeout: Duration.seconds(30),
       memorySize: 1024,
+      description: 'HAAL CENTRAAL Persoonen endpoint function',
       environment: {
         BRP_API_KEY_ARN: environmentVariables.brpHaalCentraalApiKeySecret.secretArn,
         LAYER7_ENDPOINT: Statics.layer7EndpointName,
