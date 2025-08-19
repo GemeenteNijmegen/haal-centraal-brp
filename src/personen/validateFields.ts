@@ -30,6 +30,6 @@ export async function getApplicationProfile(apiKey: string) {
 
   return {
     fields: data.Item?.fields.SS ?? [],
-    name: data.Item?.name,
+    name: data.Item?.name.S ?? 'Unknown',
   };
 }
