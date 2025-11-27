@@ -53,7 +53,7 @@ export async function handler(event: any): Promise<any> {
 
     if (validProfile) {
       // Search...
-      if (event.headers['x-bsn'] === undefined) {
+      if (!event.headers['x-bsn']) {
         return {
           statusCode: '400', //Bad Request
           body: 'Missing x-bsn header',
