@@ -122,75 +122,75 @@ describe('subset handler', () => {
       fakedInitSecrets,
     );
   });
-describe('should handle invalid and valid BSN values', () => {
-  const invalidBsnTestCases: [string, string | null | undefined][] = [
-    ['empty string should be rejected', '' ],
-    ['null value should be rejected', null],
-    ['whitespace should be rejected', '   '],
-    ['undefined should be rejected', undefined],
-    ['BSN with letters should be rejected', '12345678a'],
-    ['BSN with special characters should be rejected', '123-45-678'],
-    ['BSN that fails checksum should be rejected', '123456789'],
-  ];
+  describe('should handle invalid and valid BSN values', () => {
+    const invalidBsnTestCases: [string, string | null | undefined][] = [
+      ['empty string should be rejected', ''],
+      ['null value should be rejected', null],
+      ['whitespace should be rejected', '   '],
+      ['undefined should be rejected', undefined],
+      ['BSN with letters should be rejected', '12345678a'],
+      ['BSN with special characters should be rejected', '123-45-678'],
+      ['BSN that fails checksum should be rejected', '123456789'],
+    ];
 
-  it.each(invalidBsnTestCases)(
-    'should return 400 when x-bsn is %s',
-    async (_description, value) => {
-      setupGetItemResponse(['kinderen', 'leeftijd', 'partners'], 'UnitTestApp');
+    it.each(invalidBsnTestCases)(
+      'should return 400 when x-bsn is %s',
+      async (_description, value) => {
+        setupGetItemResponse(['kinderen', 'leeftijd', 'partners'], 'UnitTestApp');
 
-      const headers: any = {};
-      headers['x-bsn'] = value;
+        const headers: any = {};
+        headers['x-bsn'] = value;
 
-      const event = {
-        requestContext: {
-          identity: {
-            apiKey: 'test-api-key',
-            apiKeyId: 'test-api-key-id',
+        const event = {
+          requestContext: {
+            identity: {
+              apiKey: 'test-api-key',
+              apiKeyId: 'test-api-key-id',
+            },
           },
-        },
-        headers,
-      };
+          headers,
+        };
 
-      const result = await handler(event);
+        const result = await handler(event);
 
-      expect(result.statusCode).toBe('400');
-      expect(result.body).toBe('Missing or empty x-bsn header');
-      expect(result.headers['Content-Type']).toBe('text/plain');
-      expect(mockCallHaalCentraal).not.toHaveBeenCalled();
-    }
-  );
+        expect(result.statusCode).toBe('400');
+        expect(result.body).toContain('Invalid x-bsn header');
+        expect(result.headers['Content-Type']).toBe('text/plain');
+        expect(mockCallHaalCentraal).not.toHaveBeenCalled();
+      },
+    );
 
     const validBsnNumbers: [string, string][] = [
-    ['valid BSN should be accepted', '999996708'],
-    ['another valid BSN should be accepted', '999971785'],
-  ];
+      ['valid BSN should be accepted', '999996708'],
+      ['another valid BSN should be accepted', '999971785'],
+    ];
 
-  it.each(validBsnNumbers)(
-    'should process request when %s',
-    async (_description, validBsn) => {
-      setupGetItemResponse(['kinderen', 'leeftijd', 'partners'], 'TestApp');
-      
-      mockCallHaalCentraal.mockResolvedValue({
-        statusCode: 200,
-        body: JSON.stringify({
-          personen: [{ leeftijd: 35, kinderen: [], partners: [] }],
-        }),
-        headers: { 'Content-Type': 'application/json' },
-      });
+    it.each(validBsnNumbers)(
+      'should process request when %s',
+      async (_description, validBsn) => {
+        setupGetItemResponse(['kinderen', 'leeftijd', 'partners'], 'TestApp');
 
-      const event = createValidEvent(validBsn);
-      const result = await handler(event);
+        mockCallHaalCentraal.mockResolvedValue({
+          statusCode: 200,
+          body: JSON.stringify({
+            personen: [{ leeftijd: 35, kinderen: [], partners: [] }],
+          }),
+          headers: { 'Content-Type': 'application/json' },
+        });
 
-      expect(result.statusCode).toBe(200);
-      expect(mockCallHaalCentraal).toHaveBeenCalledWith(
-        JSON.stringify({
-          type: 'RaadpleegMetBurgerservicenummer',
-          fields: ['kinderen', 'leeftijd', 'partners'],
-          burgerservicenummer: [validBsn],
-        }),
-        fakedInitSecrets
-      );
-    }
-  );
-});
+        const event = createValidEvent(validBsn);
+        const result = await handler(event);
+
+        expect(result.statusCode).toBe(200);
+        expect(mockCallHaalCentraal).toHaveBeenCalledWith(
+          JSON.stringify({
+            type: 'RaadpleegMetBurgerservicenummer',
+            fields: ['kinderen', 'leeftijd', 'partners'],
+            burgerservicenummer: [validBsn],
+          }),
+          fakedInitSecrets,
+        );
+      },
+    );
+  });
 });

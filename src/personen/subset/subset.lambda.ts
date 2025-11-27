@@ -1,5 +1,6 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
+import { Bsn } from '@gemeentenijmegen/utils';
 import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from '../callHaalCentraal';
 import { initSecrets, PersonenSecrets } from '../initSecrets';
@@ -53,14 +54,15 @@ export async function handler(event: any): Promise<any> {
 
     if (validProfile) {
       const bsn = event.headers['x-bsn']?.trim();
-      if (!bsn) {
+      try {
+        new Bsn(bsn);
+      } catch (error) {
         return {
-          statusCode: '400', //Bad Request
-          body: 'Missing or empty x-bsn header',
+          statusCode: '400',
+          body: `Invalid x-bsn header ${error}`,
           headers: { 'Content-Type': 'text/plain' },
         };
       }
-
 
       const body = jsonBody(fields, [bsn]);
       const result = await callHaalCentraal(body, secrets);
