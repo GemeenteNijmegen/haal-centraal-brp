@@ -193,4 +193,145 @@ describe('subset handler', () => {
       },
     );
   });
+
+  describe('profile validation scenarios', () => {
+    let consoleErrorSpy: jest.SpyInstance;
+    beforeEach(() => {
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+    });
+    it('should return 403 when getApplicationProfile throws error for unknown API key', async () => {
+      setupGetItemResponse(); /// Zorg voor een error
+
+      const event = createValidEvent();
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe(500);
+      expect(result.body).toBe('Internal Server Error');
+      expect(result.headers['Content-Type']).toBe('text/plain');
+      expect(mockCallHaalCentraal).not.toHaveBeenCalled();
+    });
+
+    it('should return 403 when profile has insufficient fields', async () => {
+      setupGetItemResponse(['leeftijd'], 'RestrictedApp');
+
+      const event = createValidEvent();
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe('403');
+      expect(result.body).toBe('Mismatch in application/profile for requested field kinderen,leeftijd,partners');
+      expect(result.headers['Content-Type']).toBe('text/plain');
+      expect(mockCallHaalCentraal).not.toHaveBeenCalled();
+    });
+
+    it('should return 403 when profile has no overlapping fields', async () => {
+      setupGetItemResponse(['naam', 'adres'], 'DifferentApp');
+
+      const event = createValidEvent();
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe('403');
+      expect(result.body).toBe('Mismatch in application/profile for requested field kinderen,leeftijd,partners');
+      expect(result.headers['Content-Type']).toBe('text/plain');
+      expect(mockCallHaalCentraal).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('callHaalCentraal error handling', () => {
+    let consoleErrorSpy: jest.SpyInstance;
+    beforeEach(() => {
+      setupGetItemResponse(['kinderen', 'leeftijd', 'partners'], 'TestApp');
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should return 500 when callHaalCentraal throws network error', async () => {
+      mockCallHaalCentraal.mockRejectedValue(new Error('Network timeout'));
+
+      const event = createValidEvent();
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe(500);
+      expect(result.body).toBe('Internal Server Error');
+      expect(result.headers['Content-Type']).toBe('text/plain');
+    });
+
+    it('should return 500 when callHaalCentraal returns invalid JSON', async () => {
+      mockCallHaalCentraal.mockResolvedValue({
+        statusCode: 200,
+        body: 'invalid json response',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const event = createValidEvent();
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe(500);
+      expect(result.body).toBe('Internal Server Error');
+      expect(result.headers['Content-Type']).toBe('text/plain');
+    });
+  });
+
+  describe('response transformation leeftijd partner kinderen cases', () => {
+    beforeEach(() => {
+      setupGetItemResponse(['kinderen', 'leeftijd', 'partners'], 'TestApp');
+    });
+
+    const personDataTestCases: [string, any, any][] = [
+      [
+        'person with missing kinderen property',
+        { leeftijd: 30, partners: [] },
+        { leeftijd: 30, kinderen: false, partners: false },
+      ],
+      [
+        'person with missing partners property',
+        { leeftijd: 40, kinderen: [] },
+        { leeftijd: 40, kinderen: false, partners: false },
+      ],
+      [
+        'person with null kinderen',
+        { leeftijd: 50, kinderen: null, partners: [] },
+        { leeftijd: 50, kinderen: false, partners: false },
+      ],
+      [
+        'person with null partners',
+        { leeftijd: 60, kinderen: [], partners: null },
+        { leeftijd: 60, kinderen: false, partners: false },
+      ],
+      [
+        'person with multiple children and partners',
+        {
+          leeftijd: 45,
+          kinderen: [{ naam: 'Kind1' }, { naam: 'Kind2' }],
+          partners: [{ naam: 'Partner1' }, { naam: 'Partner2' }],
+        },
+        { leeftijd: 45, kinderen: true, partners: true },
+      ],
+    ];
+
+    it.each(personDataTestCases)(
+      'should correctly transform %s',
+      async (_description, personData, expectedResponse) => {
+        mockCallHaalCentraal.mockResolvedValue({
+          statusCode: 200,
+          body: JSON.stringify({ personen: [personData] }),
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        const event = createValidEvent();
+        const result = await handler(event);
+
+        expect(result.statusCode).toBe(200);
+        expect(JSON.parse(result.body)).toEqual(expectedResponse);
+        expect(result.headers['Content-Type']).toBe('application/json');
+      },
+    );
+  });
+
 });
