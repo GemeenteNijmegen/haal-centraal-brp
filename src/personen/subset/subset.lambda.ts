@@ -52,16 +52,16 @@ export async function handler(event: any): Promise<any> {
     const validProfile = validateFields(fields, profile.fields);
 
     if (validProfile) {
-      // Search...
-      if (!event.headers['x-bsn']) {
+      const bsn = event.headers['x-bsn']?.trim();
+      if (!bsn) {
         return {
           statusCode: '400', //Bad Request
-          body: 'Missing x-bsn header',
+          body: 'Missing or empty x-bsn header',
           headers: { 'Content-Type': 'text/plain' },
         };
       }
 
-      const bsn = event.headers['x-bsn'];
+
       const body = jsonBody(fields, [bsn]);
       const result = await callHaalCentraal(body, secrets);
 

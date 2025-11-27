@@ -122,12 +122,15 @@ describe('subset handler', () => {
       fakedInitSecrets,
     );
   });
-describe('should handle invalid BSN values', () => {
+describe('should handle invalid and valid BSN values', () => {
   const invalidBsnTestCases: [string, string | null | undefined][] = [
     ['empty string should be rejected', '' ],
     ['null value should be rejected', null],
     ['whitespace should be rejected', '   '],
     ['undefined should be rejected', undefined],
+    ['BSN with letters should be rejected', '12345678a'],
+    ['BSN with special characters should be rejected', '123-45-678'],
+    ['BSN that fails checksum should be rejected', '123456789'],
   ];
 
   it.each(invalidBsnTestCases)(
@@ -151,9 +154,42 @@ describe('should handle invalid BSN values', () => {
       const result = await handler(event);
 
       expect(result.statusCode).toBe('400');
-      expect(result.body).toBe('Missing x-bsn header');
+      expect(result.body).toBe('Missing or empty x-bsn header');
       expect(result.headers['Content-Type']).toBe('text/plain');
       expect(mockCallHaalCentraal).not.toHaveBeenCalled();
+    }
+  );
+
+    const validBsnNumbers: [string, string][] = [
+    ['valid BSN should be accepted', '999996708'],
+    ['another valid BSN should be accepted', '999971785'],
+  ];
+
+  it.each(validBsnNumbers)(
+    'should process request when %s',
+    async (_description, validBsn) => {
+      setupGetItemResponse(['kinderen', 'leeftijd', 'partners'], 'TestApp');
+      
+      mockCallHaalCentraal.mockResolvedValue({
+        statusCode: 200,
+        body: JSON.stringify({
+          personen: [{ leeftijd: 35, kinderen: [], partners: [] }],
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const event = createValidEvent(validBsn);
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe(200);
+      expect(mockCallHaalCentraal).toHaveBeenCalledWith(
+        JSON.stringify({
+          type: 'RaadpleegMetBurgerservicenummer',
+          fields: ['kinderen', 'leeftijd', 'partners'],
+          burgerservicenummer: [validBsn],
+        }),
+        fakedInitSecrets
+      );
     }
   );
 });
