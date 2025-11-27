@@ -1,12 +1,15 @@
+import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from '../callHaalCentraal';
 import { initSecrets, PersonenSecrets } from '../initSecrets';
-import { validateFields } from '../validateFields';
+import { getApplicationProfile, validateFields } from '../validateFields';
 
 let secrets: PersonenSecrets;
 let init = initSecrets();
 let tracer: Tracer | undefined;
+
+const logger = new Logger({ serviceName: 'HaalCentraal' });
 
 if (process.env.TRACING_ENABLED) {
   tracer = new Tracer({ serviceName: 'haalcentraal-personen-subset', captureHTTPsRequests: true });
@@ -39,7 +42,14 @@ export async function handler(event: any): Promise<any> {
     ];
 
     const apiKey = event.requestContext.identity.apiKey;
-    const validProfile = await validateFields(fields, apiKey);
+    const profile = await getApplicationProfile(apiKey);
+
+    logger.info('Request info', {
+      application: profile.name,
+      type: 'subset',
+    });
+
+    const validProfile = validateFields(fields, profile.fields);
 
     if (validProfile) {
       // Search...
@@ -52,7 +62,7 @@ export async function handler(event: any): Promise<any> {
       }
 
       const bsn = event.headers['x-bsn'];
-      const body = await jsonBody(fields, [bsn]);
+      const body = jsonBody(fields, [bsn]);
       const result = await callHaalCentraal(body, secrets);
 
       const data = JSON.parse(result.body);
@@ -83,7 +93,7 @@ export async function handler(event: any): Promise<any> {
     } else {
       return {
         statusCode: '403', //Forbidden
-        body: 'Mismatch in application/profile',
+        body: `Mismatch in application/profile for requested field ${fields}`,
         headers: { 'Content-Type': 'text/plain' },
       };
     }
@@ -104,7 +114,7 @@ export async function handler(event: any): Promise<any> {
   }
 }
 
-async function jsonBody(fields: string[], bsn: string[]): Promise<string> {
+function jsonBody(fields: string[], bsn: string[]): string {
   const body = {
     type: 'RaadpleegMetBurgerservicenummer',
     fields: fields,

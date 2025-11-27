@@ -1,11 +1,19 @@
 import { DynamoDBClient, GetItemCommand, GetItemCommandOutput } from '@aws-sdk/client-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
+import * as haal from '../callHaalCentraal';
 import { handler } from '../personen.lambda'; // Handler import done later on to mock initSecrets
 import { handler as handlerSubset } from '../subset/subset.lambda';
 import { getApplicationProfile, validateFields } from '../validateFields';
 
 jest.mock('node-fetch', () => jest.fn());
 jest.mock('../initSecrets'); // Set mockResolve seperately to prevent unused import
+jest.spyOn(haal, 'callHaalCentraal').mockResolvedValue({
+  statusCode: 200,
+  body: JSON.stringify({
+    personen: [{ leeftijd: 37, kinderen: [{}], partners: [] }],
+  }),
+  headers: { 'Content-Type': 'application/json' },
+});
 
 const ddbMock = mockClient(DynamoDBClient);
 
@@ -74,8 +82,31 @@ describe('handlersubset', () => {
 
     const result = await handlerSubset(event);
     expect(result.statusCode).toBe('403');
-    expect(result.body).toBe('Mismatch in application/profile');
+    expect(result.body).toBe('Mismatch in application/profile for requested field kinderen,leeftijd,partners');
   });
+
+  it('should return 200 for valid fields', async () => {
+    process.env.AWS_REGION = 'eu-central-1';
+    setupGetItemResponse(['kinderen', 'partners', 'leeftijd'], 'app1');
+
+    const event = {
+      requestContext: { identity: { apiKey: 'test-api-key' } },
+      headers: { 'x-bsn': '999971785' },
+    };
+
+    const result = await handlerSubset(event);
+    expect(haal.callHaalCentraal).toHaveBeenCalledWith(
+      JSON.stringify({
+        type: 'RaadpleegMetBurgerservicenummer',
+        fields: ['kinderen', 'leeftijd', 'partners'],
+        burgerservicenummer: ['999971785'],
+      }),
+      undefined, // secrets
+    );
+    expect(result.statusCode).toBe(200);
+    expect(result.body).toEqual(JSON.stringify({ leeftijd: 37, kinderen: true, partners: false }));
+  });
+
 
 });
 

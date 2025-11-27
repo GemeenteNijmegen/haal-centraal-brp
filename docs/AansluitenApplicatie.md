@@ -7,9 +7,9 @@ De *beheerder* van Haal Centraal is momenteel: devops@nijmegen.nl
 Om verzoeken te mogen doen naar de Haal Centraal API moet een API sleutel aangevraagd worden door de applicatie. Deze sleutel kan aangevraagd worden door een mail te sturen naar de *beheerder*. Een nieuwe API sleutel zal aangemaakt worden en op een veilige manier worden gedeeld.
 
 ## 2. Uploaden van certificaat
-Parallel aan het API sleutel aanvraagverzoek moet ook een certificaat van de applicatie geleverd worden. Het publieke gedeelte van het certificaat dat de applicatie gebruikt om verzoeken te doen richting de Haal Centraal API moet worden gedeeld. Dit kan wederom door een mail te sturen naar de *beheerder* met daarin het publieke certificaat.
+Parallel aan het API sleutel aanvraagverzoek moet ook een certificaat (en bijbehorende chain) van de applicatie geleverd worden. Het publieke gedeelte van het certificaat (en de chain) dat de applicatie gebruikt om verzoeken te doen richting de Haal Centraal API moet worden gedeeld. Dit kan wederom door een mail te sturen naar de *beheerder* met daarin het publieke certificaat.
 
-Het certificaat zal vervolgens toegevoegd worden aan de truststore. Dit zorgt ervoor dat de applicatie gevalideerd wordt bij elke verzoek richting de Haal Centraal API.
+Het certificaat inclusief chain zal vervolgens toegevoegd worden aan de truststore. Dit zorgt ervoor dat de applicatie gevalideerd wordt bij elke verzoek richting de Haal Centraal API.
 
 ## 3. Bepalen van velden
 Applicaties mogen niet zomaar alle velden uit de BRP opvragen. Elke applicatie heeft zijn eigen functie en daarmee ook recht tot een (sub)set van velden uit de BRP. Welke rechten dit zijn moet worden overlegd tussen de applicatie en de Gemeente Nijmegen.
