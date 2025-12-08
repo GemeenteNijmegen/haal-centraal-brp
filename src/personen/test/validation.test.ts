@@ -1,4 +1,5 @@
 import { DynamoDBClient, GetItemCommand, GetItemCommandOutput } from '@aws-sdk/client-dynamodb';
+import { APIGatewayProxyEvent } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
 import * as haal from '../callHaalCentraal';
 import { handler } from '../personen.lambda'; // Handler import done later on to mock initSecrets
@@ -10,7 +11,7 @@ jest.mock('../initSecrets'); // Set mockResolve seperately to prevent unused imp
 jest.spyOn(haal, 'callHaalCentraal').mockResolvedValue({
   statusCode: 200,
   body: JSON.stringify({
-    personen: [{ leeftijd: 37, kinderen: [{}], partners: [] }],
+    personen: [{ burgerservicenummer: '999971785', leeftijd: 37, kinderen: [{}], partners: [] }],
   }),
   headers: { 'Content-Type': 'application/json' },
 });
@@ -61,7 +62,7 @@ describe('handler', () => {
     const event = {
       body: JSON.stringify({ fields: ['invalidField'] }),
       requestContext: { identity: { apiKey: 'test-api-key' } },
-    };
+    } as any as APIGatewayProxyEvent;
     const result = await handler(event);
     expect(result.statusCode).toBe('403');
     expect(result.body).toBe('Mismatch in application/profile');
@@ -70,41 +71,44 @@ describe('handler', () => {
 });
 
 describe('handlersubset', () => {
+// To ensure impact on subset by changes made in validation will get noticed due to failing tests
 
   it('should return 403 for invalid fields', async () => {
     process.env.AWS_REGION = 'eu-central-1';
     setupGetItemResponse(['field1'], 'app1');
 
     const event = {
-      body: JSON.stringify({ fields: ['invalidField'] }),
       requestContext: { identity: { apiKey: 'test-api-key' } },
-    };
+      resource: '/burgerservicenummer/leeftijd',
+      headers: { 'x-bsn': '999971785' },
+    } as any as APIGatewayProxyEvent;
 
     const result = await handlerSubset(event);
-    expect(result.statusCode).toBe('403');
-    expect(result.body).toBe('Mismatch in application/profile for requested field kinderen,leeftijd,partners');
+    expect(result.statusCode).toBe(403);
+    expect(result.body).toContain('Mismatch in application/profile for requested fields: burgerservicenummer, leeftijd');
   });
 
   it('should return 200 for valid fields', async () => {
     process.env.AWS_REGION = 'eu-central-1';
-    setupGetItemResponse(['kinderen', 'partners', 'leeftijd'], 'app1');
+    setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'app1');
 
     const event = {
       requestContext: { identity: { apiKey: 'test-api-key' } },
+      resource: '/burgerservicenummer/leeftijd',
       headers: { 'x-bsn': '999971785' },
-    };
+    } as any as APIGatewayProxyEvent;
 
     const result = await handlerSubset(event);
     expect(haal.callHaalCentraal).toHaveBeenCalledWith(
       JSON.stringify({
         type: 'RaadpleegMetBurgerservicenummer',
-        fields: ['kinderen', 'leeftijd', 'partners'],
+        fields: ['burgerservicenummer', 'leeftijd'],
         burgerservicenummer: ['999971785'],
       }),
       undefined, // secrets
     );
     expect(result.statusCode).toBe(200);
-    expect(result.body).toEqual(JSON.stringify({ leeftijd: 37, kinderen: true, partners: false }));
+    expect(result.body).toEqual(JSON.stringify({ leeftijd: 37 }));
   });
 
 

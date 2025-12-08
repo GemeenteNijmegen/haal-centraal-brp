@@ -18,6 +18,7 @@ import { CertificatesFunction } from './certs/certificates-function';
 import { Configurable, Configuration } from './Configuration';
 import { DnsConstruct } from './constructs/DnsConstruct';
 import { PersonenFunction } from './personen/personen-function';
+import { SUBSET_ENDPOINTS } from './personen/subset/handlers/subset-endpoint-handler-config';
 import { SubsetFunction } from './personen/subset/subset-function';
 import { Statics } from './Statics';
 
@@ -59,6 +60,13 @@ export class ApiStack extends Stack {
     bsnResource.addMethod('GET', subsetLambdaIntegration, {
       apiKeyRequired: true,
     });
+
+    for (const endpoint of SUBSET_ENDPOINTS) {
+      const endpointResource = bsnResource.addResource(endpoint.path);
+      endpointResource.addMethod('GET', subsetLambdaIntegration, {
+        apiKeyRequired: true,
+      });
+    }
 
     const certificateStorage = this.certificateStorage();
     const certificateFunction = this.certificateFunction(api, certificateStorage.bucketName, truststore.bucket.bucketName);

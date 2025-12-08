@@ -64,6 +64,7 @@
     "@aws-sdk/lib-dynamodb": "^3.943.0",
     "@gemeentenijmegen/aws-constructs": "^0.0.45",
     "@gemeentenijmegen/utils": "^0.0.38",
+    "@types/aws-lambda": "^8.10.159",
     "aws-cdk-lib": "^2.1.0",
     "constructs": "^10.0.5",
     "dotenv": "^16.6.1",
