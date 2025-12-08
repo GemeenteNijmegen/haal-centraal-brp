@@ -58,7 +58,7 @@ describe('subset lambda handler', () => {
   // Event helper
   const createValidEvent = (options: CreateEventOptions = {}): APIGatewayProxyEvent => {
     const {
-      resource = '/burgerservicenummer/leeftijd',
+      resource = '/personen/burgerservicenummer/leeftijd',
       apiKey = 'test-api-key',
       apiKeyId = 'test-api-key-id',
     } = options;
@@ -130,7 +130,7 @@ describe('subset lambda handler', () => {
           },
         });
 
-        const event = createValidEvent({ resource: '/burgerservicenummer/leeftijd' });
+        const event = createValidEvent({ resource: '/personen/burgerservicenummer/leeftijd' });
         const result = await handler(event);
 
         expect(result.statusCode).toBe(200);
@@ -155,7 +155,7 @@ describe('subset lambda handler', () => {
           },
         });
 
-        const event = createValidEvent({ resource: '/burgerservicenummer/kinderen-partners' });
+        const event = createValidEvent({ resource: '/personen/burgerservicenummer/kinderen-partners' });
         const result = await handler(event);
 
         expect(result.statusCode).toBe(200);
@@ -175,7 +175,7 @@ describe('subset lambda handler', () => {
           },
         });
 
-        const event = createValidEvent({ resource: '/burgerservicenummer/kinderen-partners' });
+        const event = createValidEvent({ resource: '/personen/burgerservicenummer/kinderen-partners' });
         const result = await handler(event);
 
         expect(result.statusCode).toBe(200);
@@ -203,7 +203,7 @@ describe('subset lambda handler', () => {
           },
         });
 
-        const event = createValidEvent({ resource: '/burgerservicenummer/nederlands' });
+        const event = createValidEvent({ resource: '/personen/burgerservicenummer/nederlands' });
         const result = await handler(event);
 
         expect(result.statusCode).toBe(200);
@@ -228,7 +228,7 @@ describe('subset lambda handler', () => {
           },
         });
 
-        const event = createValidEvent({ resource: '/subset/nederlands' });
+        const event = createValidEvent({ resource: '/personen/burgerservicenummer/nederlands' });
         const result = await handler(event);
 
         expect(result.statusCode).toBe(200);
@@ -313,7 +313,7 @@ describe('subset lambda handler', () => {
     it('should return 500 when API key not found in DynamoDB', async () => {
       setupGetItemResponse();
 
-      const event = createValidEvent({ resource: '/burgerservicenummer/leeftijd' });
+      const event = createValidEvent({ resource: '/personen/burgerservicenummer/leeftijd' });
       const result = await handler(event);
 
       expect(result.statusCode).toBe(500);
@@ -325,7 +325,7 @@ describe('subset lambda handler', () => {
     it('should return 403 when profile has insufficient fields', async () => {
       setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
 
-      const event = createValidEvent({ resource: '/burgerservicenummer/kinderen-partners' });
+      const event = createValidEvent({ resource: '/personen/burgerservicenummer/kinderen-partners' });
       const result = await handler(event);
 
       expect(result.statusCode).toBe(403);
@@ -339,7 +339,7 @@ describe('subset lambda handler', () => {
     it('should return 403 when profile has no overlapping fields', async () => {
       setupGetItemResponse(['burgerservicenummer', 'naam', 'adres'], 'ApiKeyTest');
 
-      const event = createValidEvent({ resource: '/burgerservicenummer/leeftijd' });
+      const event = createValidEvent({ resource: '/personen/burgerservicenummer/leeftijd' });
       const result = await handler(event);
 
       expect(result.statusCode).toBe(403);
@@ -358,7 +358,7 @@ describe('subset lambda handler', () => {
         },
       });
 
-      const event = createValidEvent({ resource: '/burgerservicenummer/leeftijd' });
+      const event = createValidEvent({ resource: '/personen/burgerservicenummer/leeftijd' });
       const result = await handler(event);
 
       expect(result.statusCode).toBe(200);
@@ -377,7 +377,7 @@ describe('subset lambda handler', () => {
         },
       });
 
-      const event = createValidEvent({ resource: '/burgerservicenummer/leeftijd' });
+      const event = createValidEvent({ resource: '/personen/burgerservicenummer/leeftijd' });
       const result = await handler(event);
 
       expect(result.statusCode).toBe(200);
@@ -389,13 +389,13 @@ describe('subset lambda handler', () => {
 
     describe('should validate fields per endpoint', () => {
       const endpointFieldTests: [string, string, string[]][] = [
-        ['leeftijd', '/burgerservicenummer/leeftijd', ['burgerservicenummer', 'leeftijd']],
+        ['leeftijd', '/personen/burgerservicenummer/leeftijd', ['burgerservicenummer', 'leeftijd']],
         [
           'kinderen-partners',
-          '/burgerservicenummer/kinderen-partners',
+          '/personen/burgerservicenummer/kinderen-partners',
           ['burgerservicenummer', 'kinderen', 'partners'],
         ],
-        ['nederlands', '/burgerservicenummer/nederlands', ['burgerservicenummer', 'nationaliteiten']],
+        ['nederlands', '/personen/burgerservicenummer/nederlands', ['burgerservicenummer', 'nationaliteiten']],
       ];
 
       it.each(endpointFieldTests)(
@@ -432,10 +432,10 @@ describe('subset lambda handler', () => {
   describe('Endpoint and resource validation', () => {
     describe('should reject invalid resource paths', () => {
       const invalidResourceTests: [string, string, number, string][] = [
-        ['unknown endpoint', '/burgerservicenummer/onbekend-endpoint', 404, 'Endpoint not found'],
+        ['unknown endpoint', '/personen/burgerservicenummer/onbekend-endpoint', 404, 'Endpoint not found'],
         ['invalid path format', '/invalid-path', 400, 'Invalid resource path'],
         ['empty resource', '', 404, 'no endpoint found'],
-        ['only base path', '/burgerservicenummer', 400, 'Invalid resource path'],
+        ['only base path', '/personen/burgerservicenummer', 400, 'Invalid resource path'],
       ];
 
       it.each(invalidResourceTests)(

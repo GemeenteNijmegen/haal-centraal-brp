@@ -117,17 +117,18 @@ function requestJsonBody(fields: string[], bsn: string[]): string {
   return JSON.stringify(body);
 }
 
+// Assumes the lambda receives an event.resource with a path containing at least three parts url/[part1]/[part2]/[part3]
 function getEndpointFromPath(event: APIGatewayProxyEvent): string {
   if (!event.resource) {
     throw new EndpointNotFoundError('no endpoint found');
   }
   const parts = event.resource.split('/').filter(part => part.length > 0);
 
-  if (parts.length < 2 || !parts[1]) {
+  if (parts.length < 3 || !parts[2]) {
     throw new InvalidResourcePathError(event.resource);
   }
 
-  return parts[1];
+  return parts[2];
 }
 
 function getBSNFromHeader(event: APIGatewayProxyEvent): string {

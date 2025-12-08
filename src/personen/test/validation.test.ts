@@ -79,7 +79,7 @@ describe('handlersubset', () => {
 
     const event = {
       requestContext: { identity: { apiKey: 'test-api-key' } },
-      resource: '/burgerservicenummer/leeftijd',
+      resource: '/personen/burgerservicenummer/leeftijd',
       headers: { 'x-bsn': '999971785' },
     } as any as APIGatewayProxyEvent;
 
@@ -94,7 +94,7 @@ describe('handlersubset', () => {
 
     const event = {
       requestContext: { identity: { apiKey: 'test-api-key' } },
-      resource: '/burgerservicenummer/leeftijd',
+      resource: '/personen/burgerservicenummer/leeftijd',
       headers: { 'x-bsn': '999971785' },
     } as any as APIGatewayProxyEvent;
 
