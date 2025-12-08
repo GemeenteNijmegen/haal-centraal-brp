@@ -2,6 +2,8 @@ import { EndpointNotFoundError } from '../../errors/subset-errors';
 import { KinderenPartnersHandler } from '../kinderen-partners-handler';
 import { LeeftijdHandler } from '../leeftijd-handler';
 import { NederlandsHandler } from '../nederlands-handler';
+import { SUBSET_ENDPOINTS } from '../subset-endpoint-handler-config';
+import { SubsetHandler } from '../subset-handler';
 import { SubsetHandlerFactory } from '../subset-handler-factory';
 
 describe('HandlerFactory', () => {
@@ -57,5 +59,32 @@ describe('HandlerFactory', () => {
 
       expect(firstHandler).not.toBe(secondHandler);
     });
+  });
+  describe('error handling instantiate', () => {
+    it('should throw error when handler initialization fails', () => {
+      class BrokenHandler extends SubsetHandler {
+        constructor() {
+          super();
+          throw new Error('Constructor failed');
+        }
+
+        protected getAdditionalFields(): string[] {
+          return [];
+        }
+
+        processResponse(_personData: any): any {
+          return {};
+        }
+      }
+
+      jest.spyOn(SUBSET_ENDPOINTS, 'find').mockReturnValue({
+        path: 'broken',
+        handlerClass: BrokenHandler,
+      });
+
+      expect(() => SubsetHandlerFactory.getHandler('broken'))
+        .toThrow('Failed to initialize handler for endpoint broken: Error: Constructor failed');
+    });
+
   });
 });

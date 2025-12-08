@@ -1,4 +1,3 @@
-//import { Duration, RemovalPolicy, Stack, StackProps, aws_dynamodb, aws_s3, aws_s3_deployment, aws_secretsmanager, aws_lambda_event_sources, aws_iam } from 'aws-cdk-lib';
 import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
 import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
