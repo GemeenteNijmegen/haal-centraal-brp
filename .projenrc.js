@@ -15,6 +15,7 @@ const project = new GemeenteNijmegenCdkApp({
     'dotenv',
     '@aws-lambda-powertools/tracer',
     '@aws-lambda-powertools/logger',
+    '@types/aws-lambda',
   ],
   devDeps: [
     'aws-sdk-client-mock',
