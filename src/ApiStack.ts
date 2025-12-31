@@ -1,6 +1,7 @@
 import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
 import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
+import { Alarm, ComparisonOperator, Metric, TreatMissingData } from 'aws-cdk-lib/aws-cloudwatch';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { ManagedPolicy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { ApplicationLogLevel, LoggingFormat, SystemLogLevel, Tracing } from 'aws-cdk-lib/aws-lambda';
@@ -86,6 +87,13 @@ export class ApiStack extends Stack {
       resources: ['*'], // Wildcard since it is unclear which resource is needed. /domainnames/{domainName} is not working.
     });
     certificateFunction.addToRolePolicy(apiGatewayPolicy);
+
+    // Grant the Lambda function permission to publish CloudWatch metrics
+    const cloudWatchPolicy = new PolicyStatement({
+      actions: ['cloudwatch:PutMetricData'],
+      resources: ['*'],
+    });
+    certificateFunction.addToRolePolicy(cloudWatchPolicy);
 
     this.createCloudWatchAlarms(personenFunction, certificateFunction);
 
@@ -334,6 +342,34 @@ export class ApiStack extends Stack {
     new ErrorMonitoringAlarm(this, 'certificate-function-error-monitoring-alarm', {
       lambda: certificateFunction,
       criticality: 'high',
+    });
+
+    // Create alarm for certificates expiring within 30 days
+    new Alarm(this, 'certificate-expiration-alarm', {
+      alarmDescription: 'Alert when certificates are expiring within 30 days',
+      metric: new Metric({
+        namespace: 'CertificateMonitoring',
+        metricName: 'CertificateDaysUntilExpiration',
+        statistic: 'Minimum', // Use minimum to catch the certificate that expires soonest
+      }),
+      threshold: 30,
+      comparisonOperator: ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
+      evaluationPeriods: 1,
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+    });
+
+    // Create alarm for invalid certificates
+    new Alarm(this, 'invalid-certificate-alarm', {
+      alarmDescription: 'Alert when invalid certificates are detected',
+      metric: new Metric({
+        namespace: 'CertificateMonitoring',
+        metricName: 'CertificateValidity',
+        statistic: 'Minimum', // Use minimum to detect any invalid certificate (value 0)
+      }),
+      threshold: 1,
+      comparisonOperator: ComparisonOperator.LESS_THAN_THRESHOLD,
+      evaluationPeriods: 1,
+      treatMissingData: TreatMissingData.NOT_BREACHING,
     });
   }
 }

@@ -8,6 +8,7 @@ const project = new GemeenteNijmegenCdkApp({
     '@gemeentenijmegen/utils',
     '@aws-sdk/client-s3',
     '@aws-sdk/client-apigatewayv2',
+    '@aws-sdk/client-cloudwatch',
     '@aws-sdk/lib-dynamodb',
     '@aws-sdk/client-dynamodb',
     'https',
