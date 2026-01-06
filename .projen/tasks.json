@@ -47,6 +47,9 @@
       "description": "Prepare assets",
       "steps": [
         {
+          "spawn": "bundle:certmetrics/certmetrics.lambda"
+        },
+        {
           "spawn": "bundle:certs/certificates.lambda"
         },
         {
@@ -54,6 +57,24 @@
         },
         {
           "spawn": "bundle:personen/subset/subset.lambda"
+        }
+      ]
+    },
+    "bundle:certmetrics/certmetrics.lambda": {
+      "name": "bundle:certmetrics/certmetrics.lambda",
+      "description": "Create a JavaScript bundle from src/certmetrics/certmetrics.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/certmetrics/certmetrics.lambda.ts --target=\"node24\" --platform=\"node\" --outfile=\"assets/certmetrics/certmetrics.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+        }
+      ]
+    },
+    "bundle:certmetrics/certmetrics.lambda:watch": {
+      "name": "bundle:certmetrics/certmetrics.lambda:watch",
+      "description": "Continuously update the JavaScript bundle from src/certmetrics/certmetrics.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/certmetrics/certmetrics.lambda.ts --target=\"node24\" --platform=\"node\" --outfile=\"assets/certmetrics/certmetrics.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
         }
       ]
     },
