@@ -377,7 +377,7 @@
       },
       "steps": [
         {
-          "exec": "npx npm-check-updates@18 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@gemeentenijmegen/projen-project-type,@types/jest,@types/node,aws-sdk-client-mock,esbuild,eslint-import-resolver-typescript,eslint-plugin-import,jest,jest-aws-client-mock,projen,ts-jest,ts-node,typescript,@aws-lambda-powertools/logger,@aws-lambda-powertools/tracer,@aws-sdk/client-apigatewayv2,@aws-sdk/client-cloudwatch,@aws-sdk/client-dynamodb,@aws-sdk/client-s3,@aws-sdk/lib-dynamodb,@gemeentenijmegen/aws-constructs,@gemeentenijmegen/utils,@types/aws-lambda,dotenv,https,node-fetch"
+          "exec": "npx npm-check-updates@18 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@gemeentenijmegen/projen-project-type,@types/jest,@types/node,aws-sdk-client-mock,esbuild,eslint-import-resolver-typescript,eslint-plugin-import,jest,jest-aws-client-mock,ts-jest,ts-node,typescript,@aws-lambda-powertools/logger,@aws-lambda-powertools/tracer,@aws-sdk/client-apigatewayv2,@aws-sdk/client-cloudwatch,@aws-sdk/client-dynamodb,@aws-sdk/client-s3,@aws-sdk/lib-dynamodb,@gemeentenijmegen/aws-constructs,@gemeentenijmegen/utils,@types/aws-lambda,dotenv,https,node-fetch"
         },
         {
           "exec": "yarn install --check-files"
