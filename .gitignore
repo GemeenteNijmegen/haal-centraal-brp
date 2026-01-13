@@ -64,4 +64,5 @@ junit.xml
 !/src/personen/subset/subset-function.ts
 !/.github/workflows/emergency.yml
 !/.github/workflows/auto-merge.yml
+!/.nvmrc
 !/.projenrc.js
