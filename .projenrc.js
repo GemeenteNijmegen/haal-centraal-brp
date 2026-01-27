@@ -17,11 +17,11 @@ const project = new GemeenteNijmegenCdkApp({
     '@aws-lambda-powertools/tracer',
     '@aws-lambda-powertools/logger',
     '@types/aws-lambda',
+    '@gemeentenijmegen/projen-project-type',
   ],
   devDeps: [
     'aws-sdk-client-mock',
     'jest-aws-client-mock',
-    '@gemeentenijmegen/projen-project-type',
   ],
   depsUpgradeOptions: {
     workflowOptions: {
