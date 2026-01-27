@@ -47,6 +47,9 @@
       "description": "Prepare assets",
       "steps": [
         {
+          "spawn": "bundle:certmetrics/certmetrics.lambda"
+        },
+        {
           "spawn": "bundle:certs/certificates.lambda"
         },
         {
@@ -54,6 +57,24 @@
         },
         {
           "spawn": "bundle:personen/subset/subset.lambda"
+        }
+      ]
+    },
+    "bundle:certmetrics/certmetrics.lambda": {
+      "name": "bundle:certmetrics/certmetrics.lambda",
+      "description": "Create a JavaScript bundle from src/certmetrics/certmetrics.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/certmetrics/certmetrics.lambda.ts --target=\"node24\" --platform=\"node\" --outfile=\"assets/certmetrics/certmetrics.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+        }
+      ]
+    },
+    "bundle:certmetrics/certmetrics.lambda:watch": {
+      "name": "bundle:certmetrics/certmetrics.lambda:watch",
+      "description": "Continuously update the JavaScript bundle from src/certmetrics/certmetrics.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/certmetrics/certmetrics.lambda.ts --target=\"node24\" --platform=\"node\" --outfile=\"assets/certmetrics/certmetrics.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
         }
       ]
     },
@@ -356,13 +377,13 @@
       },
       "steps": [
         {
-          "exec": "npx npm-check-updates@18 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@gemeentenijmegen/projen-project-type,@types/jest,@types/node,aws-sdk-client-mock,esbuild,eslint-import-resolver-typescript,eslint-plugin-import,jest,jest-aws-client-mock,projen,ts-jest,ts-node,typescript,@aws-lambda-powertools/logger,@aws-lambda-powertools/tracer,@aws-sdk/client-apigatewayv2,@aws-sdk/client-dynamodb,@aws-sdk/client-s3,@aws-sdk/lib-dynamodb,@gemeentenijmegen/aws-constructs,@gemeentenijmegen/utils,@types/aws-lambda,dotenv,https,node-fetch"
+          "exec": "npx npm-check-updates@18 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@types/jest,@types/node,aws-sdk-client-mock,esbuild,eslint-import-resolver-typescript,eslint-plugin-import,jest,jest-aws-client-mock,ts-jest,ts-node,typescript,@aws-lambda-powertools/logger,@aws-lambda-powertools/tracer,@aws-sdk/client-apigatewayv2,@aws-sdk/client-cloudwatch,@aws-sdk/client-dynamodb,@aws-sdk/client-s3,@aws-sdk/lib-dynamodb,@gemeentenijmegen/aws-constructs,@gemeentenijmegen/projen-project-type,@gemeentenijmegen/utils,@types/aws-lambda,dotenv,https,node-fetch"
         },
         {
           "exec": "yarn install --check-files"
         },
         {
-          "exec": "yarn upgrade @gemeentenijmegen/projen-project-type @stylistic/eslint-plugin @types/jest @types/node @typescript-eslint/eslint-plugin @typescript-eslint/parser aws-cdk aws-sdk-client-mock commit-and-tag-version esbuild eslint-import-resolver-typescript eslint-plugin-import eslint jest jest-aws-client-mock jest-junit projen ts-jest ts-node typescript @aws-lambda-powertools/logger @aws-lambda-powertools/tracer @aws-sdk/client-apigatewayv2 @aws-sdk/client-dynamodb @aws-sdk/client-s3 @aws-sdk/lib-dynamodb @gemeentenijmegen/aws-constructs @gemeentenijmegen/utils @types/aws-lambda aws-cdk-lib constructs dotenv https node-fetch"
+          "exec": "yarn upgrade @stylistic/eslint-plugin @types/jest @types/node @typescript-eslint/eslint-plugin @typescript-eslint/parser aws-cdk aws-sdk-client-mock commit-and-tag-version esbuild eslint-import-resolver-typescript eslint-plugin-import eslint jest jest-aws-client-mock jest-junit projen ts-jest ts-node typescript @aws-lambda-powertools/logger @aws-lambda-powertools/tracer @aws-sdk/client-apigatewayv2 @aws-sdk/client-cloudwatch @aws-sdk/client-dynamodb @aws-sdk/client-s3 @aws-sdk/lib-dynamodb @gemeentenijmegen/aws-constructs @gemeentenijmegen/projen-project-type @gemeentenijmegen/utils @types/aws-lambda aws-cdk-lib constructs dotenv https node-fetch"
         },
         {
           "exec": "npx projen"

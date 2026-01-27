@@ -152,6 +152,7 @@
         "devDependencies": [
           "**/test/**",
           "**/build-tools/**",
+          "src/certmetrics/certmetrics.lambda.ts",
           "src/certs/certificates.lambda.ts",
           "src/personen/personen.lambda.ts",
           "src/personen/subset/subset.lambda.ts"
