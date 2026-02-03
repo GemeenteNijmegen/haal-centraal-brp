@@ -1,7 +1,10 @@
 import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
 import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
+import { Alarm, ComparisonOperator, Metric, TreatMissingData } from 'aws-cdk-lib/aws-cloudwatch';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
+import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { ManagedPolicy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { ApplicationLogLevel, LoggingFormat, SystemLogLevel, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { S3EventSourceV2 } from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -13,6 +16,7 @@ import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
+import { CertmetricsFunction } from './certmetrics/certmetrics-function';
 import { CertificatesFunction } from './certs/certificates-function';
 import { Configurable, Configuration } from './Configuration';
 import { DnsConstruct } from './constructs/DnsConstruct';
@@ -87,7 +91,33 @@ export class ApiStack extends Stack {
     });
     certificateFunction.addToRolePolicy(apiGatewayPolicy);
 
-    this.createCloudWatchAlarms(personenFunction, certificateFunction);
+    // Certificate metrics function
+    // Runs daily to monitor certificate expiration
+    const certmetricsFunction = this.certmetricsFunction(certificateStorage.bucketName);
+    certificateStorage.grantRead(certmetricsFunction); // Grant read access to certificate storage
+
+    // Grant the certmetrics function permission to publish CloudWatch metrics
+    const cloudWatchPolicy = new PolicyStatement({
+      actions: ['cloudwatch:PutMetricData'],
+      resources: ['*'],
+    });
+    certificateFunction.addToRolePolicy(cloudWatchPolicy);
+    certmetricsFunction.addToRolePolicy(cloudWatchPolicy);
+
+    // Create daily schedule for certificate metrics
+    const dailyRule = new Rule(this, 'certificate-metrics-daily-rule', {
+      description: 'Trigger certificate metrics lambda daily at 8 AM UTC / 9:00 CET',
+      schedule: Schedule.cron({
+        minute: '0',
+        hour: '8',
+        day: '*',
+        month: '*',
+        year: '*',
+      }),
+    });
+    dailyRule.addTarget(new LambdaFunction(certmetricsFunction));
+
+    this.createCloudWatchAlarms(personenFunction, certificateFunction, certmetricsFunction);
 
   }
 
@@ -323,10 +353,42 @@ export class ApiStack extends Stack {
   }
 
   /**
+   * Function that runs daily to monitor certificate expiration and send metrics to CloudWatch.
+   * @param bucketName certificate storage bucket name
+   * @returns Function that monitors certificate expiration
+   */
+  private certmetricsFunction(bucketName: string) {
+    const certmetricsFunction = new CertmetricsFunction(this, 'certmetrics-function', {
+      memorySize: 512,
+      timeout: Duration.seconds(60),
+      description: 'Daily certificate expiration monitoring and metrics',
+      environment: {
+        CERT_BUCKET_NAME: bucketName,
+      },
+      tracing: this.configuration.tracing ? Tracing.ACTIVE : Tracing.DISABLED,
+      loggingFormat: LoggingFormat.JSON,
+      systemLogLevelV2: this.configuration.devMode ? SystemLogLevel.DEBUG : SystemLogLevel.INFO,
+      applicationLogLevelV2: this.configuration.devMode ? ApplicationLogLevel.DEBUG : ApplicationLogLevel.INFO,
+    });
+
+    if (this.configuration.tracing) {
+      certmetricsFunction.role?.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('AWSXRayDaemonWriteAccess'));
+    }
+
+    return certmetricsFunction;
+  }
+
+  /**
    * Creates a CloudWatch alarm for errors in the PersonenFunction Lambda.
    * @param personenFunction personen function
+   * @param certificateFunction certificate function
+   * @param certmetricsFunction certificate metrics function
    */
-  private createCloudWatchAlarms(personenFunction: PersonenFunction, certificateFunction: CertificatesFunction) {
+  private createCloudWatchAlarms(
+    personenFunction: PersonenFunction,
+    certificateFunction: CertificatesFunction,
+    certmetricsFunction: CertmetricsFunction,
+  ) {
     new ErrorMonitoringAlarm(this, 'personen-function-error-monitoring-alarm', {
       lambda: personenFunction,
       criticality: 'high',
@@ -334,6 +396,38 @@ export class ApiStack extends Stack {
     new ErrorMonitoringAlarm(this, 'certificate-function-error-monitoring-alarm', {
       lambda: certificateFunction,
       criticality: 'high',
+    });
+    new ErrorMonitoringAlarm(this, 'certmetrics-function-error-monitoring-alarm', {
+      lambda: certmetricsFunction,
+      criticality: 'medium',
+    });
+
+    // Create alarm for certificates expiring within 30 days
+    new Alarm(this, 'certificate-expiration-alarm', {
+      alarmDescription: 'Alert when certificates are expiring within 30 days',
+      metric: new Metric({
+        namespace: 'CertificateMonitoring',
+        metricName: 'CertificateDaysUntilExpiration',
+        statistic: 'Minimum', // Use minimum to catch the certificate that expires soonest
+      }),
+      threshold: 30,
+      comparisonOperator: ComparisonOperator.LESS_THAN_OR_EQUAL_TO_THRESHOLD,
+      evaluationPeriods: 1,
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+    });
+
+    // Create alarm for invalid certificates
+    new Alarm(this, 'invalid-certificate-alarm', {
+      alarmDescription: 'Alert when invalid certificates are detected',
+      metric: new Metric({
+        namespace: 'CertificateMonitoring',
+        metricName: 'CertificateValidity',
+        statistic: 'Minimum', // Use minimum to detect any invalid certificate (value 0)
+      }),
+      threshold: 1,
+      comparisonOperator: ComparisonOperator.LESS_THAN_THRESHOLD,
+      evaluationPeriods: 1,
+      treatMissingData: TreatMissingData.NOT_BREACHING,
     });
   }
 }

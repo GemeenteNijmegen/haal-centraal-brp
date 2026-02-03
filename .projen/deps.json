@@ -1,10 +1,6 @@
 {
   "dependencies": [
     {
-      "name": "@gemeentenijmegen/projen-project-type",
-      "type": "build"
-    },
-    {
       "name": "@stylistic/eslint-plugin",
       "version": "^2",
       "type": "build"
@@ -73,6 +69,7 @@
     },
     {
       "name": "projen",
+      "version": "0.98.29",
       "type": "build"
     },
     {
@@ -100,6 +97,10 @@
       "type": "runtime"
     },
     {
+      "name": "@aws-sdk/client-cloudwatch",
+      "type": "runtime"
+    },
+    {
       "name": "@aws-sdk/client-dynamodb",
       "type": "runtime"
     },
@@ -113,6 +114,10 @@
     },
     {
       "name": "@gemeentenijmegen/aws-constructs",
+      "type": "runtime"
+    },
+    {
+      "name": "@gemeentenijmegen/projen-project-type",
       "type": "runtime"
     },
     {

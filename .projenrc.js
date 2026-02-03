@@ -8,6 +8,7 @@ const project = new GemeenteNijmegenCdkApp({
     '@gemeentenijmegen/utils',
     '@aws-sdk/client-s3',
     '@aws-sdk/client-apigatewayv2',
+    '@aws-sdk/client-cloudwatch',
     '@aws-sdk/lib-dynamodb',
     '@aws-sdk/client-dynamodb',
     'https',
@@ -16,11 +17,11 @@ const project = new GemeenteNijmegenCdkApp({
     '@aws-lambda-powertools/tracer',
     '@aws-lambda-powertools/logger',
     '@types/aws-lambda',
+    '@gemeentenijmegen/projen-project-type',
   ],
   devDeps: [
     'aws-sdk-client-mock',
     'jest-aws-client-mock',
-    '@gemeentenijmegen/projen-project-type',
   ],
   depsUpgradeOptions: {
     workflowOptions: {

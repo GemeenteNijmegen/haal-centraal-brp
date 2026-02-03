@@ -58,9 +58,11 @@ junit.xml
 /cdk.out/
 .cdk.staging/
 .parcel-cache/
+!/src/certmetrics/certmetrics-function.ts
 !/src/certs/certificates-function.ts
 !/src/personen/personen-function.ts
 !/src/personen/subset/subset-function.ts
 !/.github/workflows/emergency.yml
 !/.github/workflows/auto-merge.yml
+!/.nvmrc
 !/.projenrc.js

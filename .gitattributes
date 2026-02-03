@@ -13,6 +13,7 @@
 /.github/workflows/upgrade-development.yml linguist-generated
 /.gitignore linguist-generated
 /.npmignore linguist-generated
+/.nvmrc linguist-generated
 /.projen/** linguist-generated
 /.projen/deps.json linguist-generated
 /.projen/files.json linguist-generated
@@ -20,6 +21,7 @@
 /cdk.json linguist-generated
 /LICENSE linguist-generated
 /package.json linguist-generated
+/src/certmetrics/certmetrics-function.ts linguist-generated
 /src/certs/certificates-function.ts linguist-generated
 /src/personen/personen-function.ts linguist-generated
 /src/personen/subset/subset-function.ts linguist-generated

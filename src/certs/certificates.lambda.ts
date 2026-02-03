@@ -15,10 +15,14 @@ export async function handler(event: any): Promise<any> {
 
   try {
     const certificates = await getCertificates();
-    console.log('Received certificates');
+    console.log('Retrieved certificates from S3');
+
+    if (certificates.length === 0) {
+      throw new Error('No certificates found');
+    }
 
     const pemFilePath = await buildNewTruststore(certificates);
-    console.log('New truststore build');
+    console.log('New truststore built');
 
     const domainNameResource = await getDomainNameResource();
     console.log('Received domain name resource');
@@ -38,8 +42,6 @@ export async function handler(event: any): Promise<any> {
 
 /**
  * Get certificates from the s3 bucket
- * @param s3 S3 client
- * @param bucketName bucket name
  * @returns list of certificate objects
  */
 export async function getCertificates(): Promise<Array<string>> {
