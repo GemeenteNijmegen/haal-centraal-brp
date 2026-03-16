@@ -72,7 +72,7 @@ describe('HandlerFactory', () => {
           return [];
         }
 
-        processResponse(_personData: any): any {
+        processResponse(): any {
           return {};
         }
       }
