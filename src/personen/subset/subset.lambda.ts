@@ -138,7 +138,7 @@ function getBSNFromHeader(event: APIGatewayProxyEvent): string {
   }
   try {
     new Bsn(bsn);
-  } catch (error) {
+  } catch {
     throw new InvalidBsnError();
   }
   return bsn;
