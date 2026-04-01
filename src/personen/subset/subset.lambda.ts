@@ -138,7 +138,8 @@ function getBSNFromHeader(event: APIGatewayProxyEvent): string {
   }
   try {
     new Bsn(bsn);
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Invalid BSN', { error });
     throw new InvalidBsnError();
   }
   return bsn;

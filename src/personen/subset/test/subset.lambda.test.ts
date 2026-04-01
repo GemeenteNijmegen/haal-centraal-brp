@@ -537,7 +537,7 @@ describe('subset lambda handler', () => {
 
       it.each(nonSuccessStatusCodes)(
         'should return %s when Haal Centraal returns %s',
-        async (statusCode, _description) => {
+        async (statusCode) => {
           setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
           mockCallHaalCentraal.mockResolvedValue({
             statusCode,
