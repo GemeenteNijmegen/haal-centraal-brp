@@ -1,0 +1,12 @@
+{
+  "type": "RaadpleegMetBurgerservicenummer",
+  "burgerservicenummer": ["999971785"],
+  "fields": [
+    "partners.burgerservicenummer",
+    "partners.naam.voornamen",
+    "partners.naam.voorletters",
+    "partners.naam.voorvoegsel",
+    "partners.naam.geslachtsnaam",
+    "partners.geboorte.datum"
+  ]
+}

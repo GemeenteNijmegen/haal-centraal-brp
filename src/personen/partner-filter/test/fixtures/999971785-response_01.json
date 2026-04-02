@@ -1,0 +1,36 @@
+{
+  "type": "RaadpleegMetBurgerservicenummer",
+  "personen": [
+    {
+      "burgerservicenummer": "999971785",
+      "geslacht": {
+        "code": "M",
+        "omschrijving": "man"
+      },
+      "naam": {
+        "geslachtsnaam": "Hul",
+        "volledigeNaam": "Sem van 't Hul"
+      },
+      "geboorte": {
+        "datum": {
+          "type": "Datum",
+          "datum": "2006-01-01",
+          "langFormaat": "1 januari 2006"
+        }
+      },
+      "verblijfplaats": {
+        "type": "Adres",
+        "verblijfadres": {
+          "officieleStraatnaam": "Mariënburg",
+          "huisnummer": 30,
+          "postcode": "6511PS",
+          "woonplaats": "Nijmegen"
+        }
+      },
+      "gemeenteVanInschrijving": {
+        "code": "0268",
+        "omschrijving": "Nijmegen"
+      }
+    }
+  ]
+}

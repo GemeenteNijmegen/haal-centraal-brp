@@ -23,6 +23,7 @@
 /package.json linguist-generated
 /src/certmetrics/certmetrics-function.ts linguist-generated
 /src/certs/certificates-function.ts linguist-generated
+/src/personen/partner-filter/partner-filter-function.ts linguist-generated
 /src/personen/personen-function.ts linguist-generated
 /src/personen/subset/subset-function.ts linguist-generated
 /tsconfig.dev.json linguist-generated
