@@ -75,16 +75,16 @@ describe('partner filter lambda handler', () => {
     return {
       body: JSON.stringify(body),
       httpMethod: 'POST',
-      path: '/personen/partnerfilter',
-      resource: '/personen/partnerfilter',
+      path: '/partnerfilter/personen',
+      resource: '/partnerfilter/personen',
       requestContext: {
         identity: {
           apiKey,
           apiKeyId,
         },
         httpMethod: 'POST',
-        path: '/personen/partnerfilter',
-        resourcePath: '/personen/partnerfilter',
+        path: '/partnerfilter/personen',
+        resourcePath: '/partnerfilter/personen',
       },
     } as APIGatewayProxyEvent;
   };
