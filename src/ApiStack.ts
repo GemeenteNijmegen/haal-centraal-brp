@@ -60,7 +60,7 @@ export class ApiStack extends Stack {
       apiKeyRequired: true,
     });
 
-    const partnerFilterResource = resource.addResource('partnerfilter');
+    const partnerFilterResource = api.root.addResource('partnerfilter').addResource('personen');
     const partnerFilterLambdaIntegration = new LambdaIntegration(partnerFilterPersonenFunction);
     partnerFilterResource.addMethod('POST', partnerFilterLambdaIntegration, {
       apiKeyRequired: true,
