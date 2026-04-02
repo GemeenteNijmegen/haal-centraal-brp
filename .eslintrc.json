@@ -155,6 +155,7 @@
           "src/certmetrics/certmetrics.lambda.ts",
           "src/certs/certificates.lambda.ts",
           "src/personen/personen.lambda.ts",
+          "src/personen/partner-filter/partner-filter.lambda.ts",
           "src/personen/subset/subset.lambda.ts"
         ],
         "optionalDependencies": false,

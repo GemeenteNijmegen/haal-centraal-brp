@@ -8,6 +8,8 @@
     "bundle:certmetrics/certmetrics.lambda:watch": "npx projen bundle:certmetrics/certmetrics.lambda:watch",
     "bundle:certs/certificates.lambda": "npx projen bundle:certs/certificates.lambda",
     "bundle:certs/certificates.lambda:watch": "npx projen bundle:certs/certificates.lambda:watch",
+    "bundle:personen/partner-filter/partner-filter.lambda": "npx projen bundle:personen/partner-filter/partner-filter.lambda",
+    "bundle:personen/partner-filter/partner-filter.lambda:watch": "npx projen bundle:personen/partner-filter/partner-filter.lambda:watch",
     "bundle:personen/personen.lambda": "npx projen bundle:personen/personen.lambda",
     "bundle:personen/personen.lambda:watch": "npx projen bundle:personen/personen.lambda:watch",
     "bundle:personen/subset/subset.lambda": "npx projen bundle:personen/subset/subset.lambda",
