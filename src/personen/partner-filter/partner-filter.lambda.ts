@@ -13,6 +13,8 @@ import {
 import { getApplicationProfile, validateFields } from '../validateFields';
 
 /**
+ * De readme in deze lambda map bevat het gedrag van de haalcentraal api, het probleem, de testgevallen en de gekozen tijdelijke oplossing.
+ *
  * Temporary endpoint, which will be removed once https://github.com/open-formulieren/open-forms/issues/5856 has been implemented and tested
  * If a personen call to this endpoint contains a partners request field, it should add partners.ontbindingHuwelijkPartnerschap to the requested field
  * Once the result returns it should check if the returned partners (always max one) contains a ontbindingHuewelijkPartnerschap object.
