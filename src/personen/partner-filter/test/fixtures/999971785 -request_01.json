@@ -1,0 +1,21 @@
+{
+  "type": "RaadpleegMetBurgerservicenummer",
+  "burgerservicenummer": ["999971785"],
+  "fields": [
+    "burgerservicenummer",
+    "geslacht.omschrijving",
+    "naam.geslachtsnaam",
+    "verblijfplaats.verblijfadres.huisnummer",
+    "verblijfplaats.verblijfadres.huisnummertoevoeging",
+    "verblijfplaats.verblijfadres.huisletter",
+    "naam.volledigeNaam",
+    "verblijfplaats.verblijfadres.officieleStraatnaam",
+    "verblijfplaats.verblijfadres.woonplaats",
+    "verblijfplaats.verblijfadres.postcode",
+    "geboorte.datum.type",
+    "geboorte.datum.langFormaat",
+    "geboorte.datum.datum",
+    "gemeenteVanInschrijving.omschrijving",
+    "gemeenteVanInschrijving.omschrijving"
+  ]
+}

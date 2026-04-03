@@ -61,6 +61,7 @@ junit.xml
 !/src/certmetrics/certmetrics-function.ts
 !/src/certs/certificates-function.ts
 !/src/personen/personen-function.ts
+!/src/personen/partner-filter/partner-filter-function.ts
 !/src/personen/subset/subset-function.ts
 !/.github/workflows/emergency.yml
 !/.github/workflows/auto-merge.yml

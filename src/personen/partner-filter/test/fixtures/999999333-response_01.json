@@ -1,0 +1,43 @@
+{
+  "type": "RaadpleegMetBurgerservicenummer",
+  "personen": [
+    {
+      "naam": {
+        "volledigeNaam": "Nasier Boeddhoe"
+      },
+      "verblijfplaats": {
+        "type": "Adres",
+        "verblijfadres": {
+          "officieleStraatnaam": "Anna van Saksenlaan",
+          "huisnummer": 71,
+          "postcode": "2593HW",
+          "woonplaats": "'s-Gravenhage"
+        }
+      },
+      "partners": [
+        {
+          "naam": {
+            "voornamen": "Sherida",
+            "geslachtsnaam": "Malhoe",
+            "voorletters": "S."
+          },
+          "geboorte": {
+            "datum": {
+              "type": "Datum",
+              "datum": "1950-01-01",
+              "langFormaat": "1 januari 1950"
+            }
+          },
+          "ontbindingHuwelijkPartnerschap": {
+            "datum": {
+              "type": "Datum",
+              "datum": "2000-03-08",
+              "langFormaat": "8 maart 2000"
+            }
+          },
+          "burgerservicenummer": "999993240"
+        }
+      ]
+    }
+  ]
+}

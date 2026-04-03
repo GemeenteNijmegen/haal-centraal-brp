@@ -20,6 +20,7 @@ import { CertmetricsFunction } from './certmetrics/certmetrics-function';
 import { CertificatesFunction } from './certs/certificates-function';
 import { Configurable, Configuration } from './Configuration';
 import { DnsConstruct } from './constructs/DnsConstruct';
+import { PartnerFilterFunction } from './personen/partner-filter/partner-filter-function';
 import { PersonenFunction } from './personen/personen-function';
 import { SUBSET_ENDPOINTS } from './personen/subset/handlers/subset-endpoint-handler-config';
 import { SubsetFunction } from './personen/subset/subset-function';
@@ -52,9 +53,16 @@ export class ApiStack extends Stack {
     const resource = api.root.addResource('personen');
     const personenFunction = this.personenFunction(idTable, environmentVariables, props.configuration.devMode);
     const subsetPersonenFunction = this.subsetPersonenFunction(idTable, environmentVariables, props.configuration.devMode);
+    const partnerFilterPersonenFunction = this.partnerFilterPersonenFunction(idTable, environmentVariables, props.configuration.devMode);
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
     resource.addMethod('POST', lambdaIntegration, {
+      apiKeyRequired: true,
+    });
+
+    const partnerFilterResource = api.root.addResource('partnerfilter').addResource('personen');
+    const partnerFilterLambdaIntegration = new LambdaIntegration(partnerFilterPersonenFunction);
+    partnerFilterResource.addMethod('POST', partnerFilterLambdaIntegration, {
       apiKeyRequired: true,
     });
 
@@ -139,6 +147,52 @@ export class ApiStack extends Stack {
 
     return env;
   }
+
+  /**
+   * Function that validates the incoming profile, checks for partner fields and filters dissolved partnerships.
+   * @param idTable Table containing the relevant application-ids (api keys) related to a specific set of fields.
+   * @param devMode Wether or not devmode is enabled.
+   * @returns The partner filter personen lambda
+   */
+  private partnerFilterPersonenFunction(idTable: Table, environmentVariables: any, devMode: boolean) {
+
+    const partnerFilterPersonenLambda = new PartnerFilterFunction(this, 'partnerfilterpersonenfunction', {
+      timeout: Duration.seconds(30),
+      memorySize: 1024,
+      environment: {
+        BRP_API_KEY_ARN: environmentVariables.brpHaalCentraalApiKeySecret.secretArn,
+        LAYER7_ENDPOINT: Statics.layer7EndpointName,
+        CERTIFICATE: environmentVariables.certificate.secretArn,
+        CERTIFICATE_KEY: environmentVariables.certificateKey.secretArn,
+        CERTIFICATE_CA: environmentVariables.certificateCa.secretArn,
+        ID_TABLE_NAME: idTable.tableName,
+        DEV_MODE: devMode ? 'true' : 'false',
+        TRACING_ENABLED: this.configuration.tracing ? 'true' : 'false',
+        AWS_XRAY_DEBUG_MODE: this.configuration.branch == 'development' ? 'TRUE' : 'FALSE',
+        AWS_XRAY_LOG_LEVEL: this.configuration.branch == 'development' ? SystemLogLevel.DEBUG : SystemLogLevel.INFO,
+        AWS_XRAY_CONTEXT_MISSING: 'IGNORE_ERROR',
+        DEBUG: this.configuration.devMode ? 'true' : 'false',
+      },
+      tracing: this.configuration.tracing ? Tracing.ACTIVE : Tracing.DISABLED,
+      loggingFormat: LoggingFormat.JSON,
+      systemLogLevelV2: this.configuration.devMode ? SystemLogLevel.DEBUG : SystemLogLevel.INFO,
+      applicationLogLevelV2: this.configuration.devMode ? ApplicationLogLevel.DEBUG : ApplicationLogLevel.INFO,
+    });
+
+    if (this.configuration.tracing) {
+      partnerFilterPersonenLambda.role?.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('AWSXRayDaemonWriteAccess'));
+    }
+
+    environmentVariables.brpHaalCentraalApiKeySecret.grantRead(partnerFilterPersonenLambda);
+    environmentVariables.certificate.grantRead(partnerFilterPersonenLambda);
+    environmentVariables.certificateKey.grantRead(partnerFilterPersonenLambda);
+    environmentVariables.certificateCa.grantRead(partnerFilterPersonenLambda);
+    environmentVariables.layer7Endpoint.grantRead(partnerFilterPersonenLambda);
+    idTable.grantReadWriteData(partnerFilterPersonenLambda);
+
+    return partnerFilterPersonenLambda;
+  }
+
 
   /**
    * Function that validates the incoming profile and forwards (and returns) the request for a subset of fields.

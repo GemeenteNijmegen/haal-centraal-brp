@@ -1,0 +1,18 @@
+{
+  "type": "RaadpleegMetBurgerservicenummer",
+  "burgerservicenummer": ["999999333"],
+  "fields": [
+    "naam.volledigeNaam",
+    "verblijfplaats.verblijfadres.postcode",
+    "verblijfplaats.verblijfadres.officieleStraatnaam",
+    "verblijfplaats.verblijfadres.huisnummer",
+    "verblijfplaats.verblijfadres.woonplaats",
+    "partners.burgerservicenummer",
+    "partners.naam.voornamen",
+    "partners.naam.voorletters",
+    "partners.naam.voorvoegsel",
+    "partners.naam.geslachtsnaam",
+    "partners.geboorte.datum",
+    "partners.ontbindingHuwelijkPartnerschap"
+  ]
+}

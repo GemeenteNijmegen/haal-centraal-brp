@@ -56,6 +56,9 @@
           "spawn": "bundle:personen/personen.lambda"
         },
         {
+          "spawn": "bundle:personen/partner-filter/partner-filter.lambda"
+        },
+        {
           "spawn": "bundle:personen/subset/subset.lambda"
         }
       ]
@@ -93,6 +96,24 @@
       "steps": [
         {
           "exec": "esbuild --bundle src/certs/certificates.lambda.ts --target=\"node24\" --platform=\"node\" --outfile=\"assets/certs/certificates.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
+        }
+      ]
+    },
+    "bundle:personen/partner-filter/partner-filter.lambda": {
+      "name": "bundle:personen/partner-filter/partner-filter.lambda",
+      "description": "Create a JavaScript bundle from src/personen/partner-filter/partner-filter.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/personen/partner-filter/partner-filter.lambda.ts --target=\"node24\" --platform=\"node\" --outfile=\"assets/personen/partner-filter/partner-filter.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/*"
+        }
+      ]
+    },
+    "bundle:personen/partner-filter/partner-filter.lambda:watch": {
+      "name": "bundle:personen/partner-filter/partner-filter.lambda:watch",
+      "description": "Continuously update the JavaScript bundle from src/personen/partner-filter/partner-filter.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/personen/partner-filter/partner-filter.lambda.ts --target=\"node24\" --platform=\"node\" --outfile=\"assets/personen/partner-filter/partner-filter.lambda/index.js\" --tsconfig=\"tsconfig.dev.json\" --external:@aws-sdk/* --watch"
         }
       ]
     },
