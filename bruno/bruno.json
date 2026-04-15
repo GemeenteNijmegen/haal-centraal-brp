@@ -1,5 +1,17 @@
 {
   "version": "1",
   "name": "Haal Centraal BRP",
-  "type": "collection"
+  "type": "collection",
+  "clientCertificates": {
+    "enabled": true,
+    "certs": [
+      {
+        "domain": "api.haal-centraal-brp-dev.csp-nijmegen.nl",
+        "type": "cert",
+        "certFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/dev/haal-centraal-brp-bruno-dev.crt",
+        "keyFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/dev/haal-centraal-brp-bruno-dev.key",
+        "passphrase": ""
+      }
+    ]
+  }
 }
