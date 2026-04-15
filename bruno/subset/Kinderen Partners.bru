@@ -1,0 +1,16 @@
+meta {
+  name: Kinderen Partners
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://{{baseUrl}}/personen/burgerservicenummer/kinderen-partners
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-KEY: {{apiKey}}
+  x-bsn: {{bsn}}
+}

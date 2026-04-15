@@ -1,0 +1,30 @@
+meta {
+  name: Personen
+  type: http
+  seq: 1
+}
+
+post {
+  url: https://{{baseUrl}}/personen
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-API-KEY: {{apiKey}}
+}
+
+body:json {
+  {
+    "type": "RaadpleegMetBurgerservicenummer",
+    "burgerservicenummer": [
+      "{{bsn}}"
+    ],
+    "fields": [
+      "burgerservicenummer",
+      "geslacht",
+      "naam"
+    ]
+  }
+}
