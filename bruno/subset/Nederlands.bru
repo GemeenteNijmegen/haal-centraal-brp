@@ -1,0 +1,16 @@
+meta {
+  name: Nederlands
+  type: http
+  seq: 3
+}
+
+get {
+  url: https://{{baseUrl}}/personen/burgerservicenummer/nederlands
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-KEY: {{apiKey}}
+  x-bsn: {{bsn}}
+}
