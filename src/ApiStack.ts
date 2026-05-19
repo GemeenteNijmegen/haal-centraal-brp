@@ -47,15 +47,16 @@ export class ApiStack extends Stack {
     const cert = this.cert();
     const truststore = this.trustStore();
     const environmentVariables = this.environmentVariables();
-    const api = this.api(cert, truststore.bucket, truststore.deployment, props.configuration.devMode);
+    const { api, usagePlan } = this.api(cert, truststore.bucket, truststore.deployment, props.configuration.devMode);
     this.addDnsRecords(api);
 
     // Add a second stage 'brp' so the API is also available under /brp/personen
-    new Stage(this, 'brp-stage', {
+    const brpStage = new Stage(this, 'brp-stage', {
       deployment: api.latestDeployment!,
       stageName: 'brp',
       tracingEnabled: this.configuration.tracing,
     });
+    usagePlan.addApiStage({ stage: brpStage });
 
     const resource = api.root.addResource('personen');
     const personenFunction = this.personenFunction(idTable, environmentVariables, props.configuration.devMode);
@@ -339,7 +340,7 @@ export class ApiStack extends Stack {
     api.node.addDependency(deployment);
 
     // Usage plan attached to the api gateway.
-    const plan = api.addUsagePlan('plan', {
+    const usagePlan = api.addUsagePlan('plan', {
       description: 'internal use',
     });
 
@@ -347,13 +348,13 @@ export class ApiStack extends Stack {
     const key = new ApiKey(this, 'apikey', {
       description: 'Haal Centraal BRP Api Key',
     });
-    plan.addApiKey(key);
-    plan.node.addDependency(key);
-    plan.addApiStage({
+    usagePlan.addApiKey(key);
+    usagePlan.node.addDependency(key);
+    usagePlan.addApiStage({
       stage: api.deploymentStage,
     });
 
-    return api;
+    return { api, usagePlan };
   }
 
   private cert() {
