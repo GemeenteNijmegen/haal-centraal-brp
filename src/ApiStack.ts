@@ -1,5 +1,5 @@
 import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
-import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
+import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy, Stage } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { Alarm, ComparisonOperator, Metric, TreatMissingData } from 'aws-cdk-lib/aws-cloudwatch';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
@@ -49,6 +49,13 @@ export class ApiStack extends Stack {
     const environmentVariables = this.environmentVariables();
     const api = this.api(cert, truststore.bucket, truststore.deployment, props.configuration.devMode);
     this.addDnsRecords(api);
+
+    // Add a second stage 'brp' so the API is also available under /brp/personen
+    new Stage(this, 'brp-stage', {
+      deployment: api.latestDeployment!,
+      stageName: 'brp',
+      tracingEnabled: this.configuration.tracing,
+    });
 
     const resource = api.root.addResource('personen');
     const personenFunction = this.personenFunction(idTable, environmentVariables, props.configuration.devMode);
