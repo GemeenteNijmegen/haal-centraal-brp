@@ -1,5 +1,5 @@
 import { ErrorMonitoringAlarm } from '@gemeentenijmegen/aws-constructs';
-import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy, Stage } from 'aws-cdk-lib/aws-apigateway';
+import { ApiKey, LambdaIntegration, RestApi, SecurityPolicy } from 'aws-cdk-lib/aws-apigateway';
 import { Certificate, CertificateValidation } from 'aws-cdk-lib/aws-certificatemanager';
 import { Alarm, ComparisonOperator, Metric, TreatMissingData } from 'aws-cdk-lib/aws-cloudwatch';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
@@ -47,16 +47,8 @@ export class ApiStack extends Stack {
     const cert = this.cert();
     const truststore = this.trustStore();
     const environmentVariables = this.environmentVariables();
-    const { api, usagePlan } = this.api(cert, truststore.bucket, truststore.deployment, props.configuration.devMode);
+    const api = this.api(cert, truststore.bucket, truststore.deployment, props.configuration.devMode);
     this.addDnsRecords(api);
-
-    // Add a second stage 'brp' so the API is also available under /brp/personen
-    const brpStage = new Stage(this, 'brp-stage', {
-      deployment: api.latestDeployment!,
-      stageName: 'brp',
-      tracingEnabled: this.configuration.tracing,
-    });
-    usagePlan.addApiStage({ stage: brpStage });
 
     const resource = api.root.addResource('personen');
     const personenFunction = this.personenFunction(idTable, environmentVariables, props.configuration.devMode);
@@ -65,6 +57,13 @@ export class ApiStack extends Stack {
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
     resource.addMethod('POST', lambdaIntegration, {
+      apiKeyRequired: true,
+    });
+
+    // Also expose /brp/personen for consumers that include the 'brp' path prefix (for kiss)
+    const brpResource = api.root.addResource('brp');
+    const brpPersonenResource = brpResource.addResource('personen');
+    brpPersonenResource.addMethod('POST', lambdaIntegration, {
       apiKeyRequired: true,
     });
 
@@ -354,7 +353,7 @@ export class ApiStack extends Stack {
       stage: api.deploymentStage,
     });
 
-    return { api, usagePlan };
+    return api;
   }
 
   private cert() {
