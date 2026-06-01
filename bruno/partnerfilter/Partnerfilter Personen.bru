@@ -1,0 +1,29 @@
+meta {
+  name: Partnerfilter Personen
+  type: http
+  seq: 1
+}
+
+post {
+  url: https://{{baseUrl}}/partnerfilter/personen
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-API-KEY: {{apiKey}}
+}
+
+body:json {
+  {
+    "type": "RaadpleegMetBurgerservicenummer",
+    "burgerservicenummer": [
+      "{{bsn}}"
+    ],
+    "fields": [
+      "burgerservicenummer",
+      "partners"
+    ]
+  }
+}

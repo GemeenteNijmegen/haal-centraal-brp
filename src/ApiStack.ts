@@ -60,6 +60,13 @@ export class ApiStack extends Stack {
       apiKeyRequired: true,
     });
 
+    // Also expose /brp/personen for consumers that include the 'brp' path prefix (for kiss)
+    const brpResource = api.root.addResource('brp');
+    const brpPersonenResource = brpResource.addResource('personen');
+    brpPersonenResource.addMethod('POST', lambdaIntegration, {
+      apiKeyRequired: true,
+    });
+
     const partnerFilterResource = api.root.addResource('partnerfilter').addResource('personen');
     const partnerFilterLambdaIntegration = new LambdaIntegration(partnerFilterPersonenFunction);
     partnerFilterResource.addMethod('POST', partnerFilterLambdaIntegration, {
@@ -332,7 +339,7 @@ export class ApiStack extends Stack {
     api.node.addDependency(deployment);
 
     // Usage plan attached to the api gateway.
-    const plan = api.addUsagePlan('plan', {
+    const usagePlan = api.addUsagePlan('plan', {
       description: 'internal use',
     });
 
@@ -340,9 +347,9 @@ export class ApiStack extends Stack {
     const key = new ApiKey(this, 'apikey', {
       description: 'Haal Centraal BRP Api Key',
     });
-    plan.addApiKey(key);
-    plan.node.addDependency(key);
-    plan.addApiStage({
+    usagePlan.addApiKey(key);
+    usagePlan.node.addDependency(key);
+    usagePlan.addApiStage({
       stage: api.deploymentStage,
     });
 

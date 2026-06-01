@@ -1,0 +1,16 @@
+meta {
+  name: Leeftijd
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://{{baseUrl}}/personen/burgerservicenummer/leeftijd
+  body: none
+  auth: none
+}
+
+headers {
+  X-API-KEY: {{apiKey}}
+  x-bsn: {{bsn}}
+}
