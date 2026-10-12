@@ -8,10 +8,30 @@
       {
         "domain": "api.haal-centraal-brp-dev.csp-nijmegen.nl",
         "type": "cert",
-        "certFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/dev/haal-centraal-brp-bruno-dev.crt",
-        "keyFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/dev/haal-centraal-brp-bruno-dev.key",
+        "certFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/dev/hcbrp-bruno-dev/haal-centraal-brp-bruno-dev.crt",
+        "keyFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/dev/hcbrp-bruno-dev/haal-centraal-brp-bruno-dev.key",
+        "passphrase": ""
+      },
+      {
+        "domain": "api.haal-centraal-brp-accp.csp-nijmegen.nl",
+        "type": "cert",
+        "certFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/accp/hcbrp-bruno-accp/haal-centraal-brp-bruno-accp-20260720.crt",
+        "keyFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/accp/hcbrp-bruno-accp/haal-centraal-brp-bruno-accp-20260720.key",
+        "passphrase": ""
+      },
+      {
+        "domain": "api.haal-centraal-brp-prod.csp-nijmegen.nl",
+        "type": "cert",
+        "certFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/prod/hcbrp-bruno-prod/haal-centraal-brp-bruno-prod-20260720.crt",
+        "keyFilePath": "../../../Local/Certs/HaalCentraalBRP/2026/prod/hcbrp-bruno-prod/haal-centraal-brp-bruno-prod-20260720.key",
         "passphrase": ""
       }
     ]
-  }
+  },
+  "ignore": [
+    "node_modules",
+    ".git"
+  ],
+  "size": 0.001697540283203125,
+  "filesCount": 9
 }
