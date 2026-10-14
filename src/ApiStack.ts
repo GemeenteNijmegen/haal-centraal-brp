@@ -119,6 +119,15 @@ export class ApiStack extends Stack {
     certificateFunction.addToRolePolicy(cloudWatchPolicy);
     certmetricsFunction.addToRolePolicy(cloudWatchPolicy);
 
+    // Grant the three request lambdas permission to publish CloudWatch metrics (certificate binding check)
+    const requestLambdaCloudWatchPolicy = new PolicyStatement({
+      actions: ['cloudwatch:PutMetricData'],
+      resources: ['*'],
+    });
+    personenFunction.addToRolePolicy(requestLambdaCloudWatchPolicy);
+    subsetPersonenFunction.addToRolePolicy(requestLambdaCloudWatchPolicy);
+    partnerFilterPersonenFunction.addToRolePolicy(requestLambdaCloudWatchPolicy);
+
     // Create daily schedule for certificate metrics
     const dailyRule = new Rule(this, 'certificate-metrics-daily-rule', {
       description: 'Trigger certificate metrics lambda daily at 8 AM UTC / 9:00 CET',

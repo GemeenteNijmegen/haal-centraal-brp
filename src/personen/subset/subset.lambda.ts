@@ -4,6 +4,7 @@ import { Bsn } from '@gemeentenijmegen/utils';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from '../callHaalCentraal';
+import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from '../certBinding';
 import { initSecrets, PersonenSecrets } from '../initSecrets';
 import { getApplicationProfile, validateFields } from '../validateFields';
 import { createErrorResponse } from './errors/error-response';
@@ -46,6 +47,16 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     const profile = await getApplicationProfile(apiKey);
     profileName = getProfileName(profile);
 
+    // LOG-ONLY certificate-to-API-key binding check (does not affect control flow).
+    const clientCertPem = extractClientCertPem(event);
+    const fingerprint = computeClientCertFingerprint(clientCertPem);
+    await checkCertificateBinding({
+      fingerprint,
+      allowedFingerprints: profile.fingerprints,
+      profileName: profile.name,
+      apiKeyId,
+    });
+
 
     const bsn = getBSNFromHeader(event);
 
@@ -81,7 +92,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
   }
 }
 
-function getProfileName( profile: { fields: string[]; name: string }) {
+function getProfileName( profile: { fields: string[]; name: string; fingerprints: string[] }) {
   const profileName = profile.name ?? 'unknown profile name';
   logger.info('Request info', {
     application: profile.name,

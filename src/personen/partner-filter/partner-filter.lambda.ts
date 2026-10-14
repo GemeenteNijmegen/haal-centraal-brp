@@ -3,6 +3,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from '../callHaalCentraal';
+import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from '../certBinding';
 import { PersonenSecrets, initSecrets } from '../initSecrets';
 import { createErrorResponse } from '../subset/errors/error-response';
 import {
@@ -68,6 +69,16 @@ export async function handler(
     const profile = await getApplicationProfile(apiKey);
     profileName = getProfileName(profile);
 
+    // LOG-ONLY certificate-to-API-key binding check (does not affect control flow).
+    const clientCertPem = extractClientCertPem(event);
+    const fingerprint = computeClientCertFingerprint(clientCertPem);
+    await checkCertificateBinding({
+      fingerprint,
+      allowedFingerprints: profile.fingerprints,
+      profileName: profile.name,
+      apiKeyId,
+    });
+
     const originalFields: string[] = request.fields ?? [];
 
     const validProfile = validateFields(originalFields, profile.fields);
@@ -115,7 +126,7 @@ export async function handler(
   }
 }
 
-function getProfileName(profile: { fields: string[]; name: string }): string {
+function getProfileName(profile: { fields: string[]; name: string; fingerprints: string[] }): string {
   const profileName = profile.name ?? 'unknown profile name';
   logger.info('Request info', {
     application: profile.name,
