@@ -94,12 +94,26 @@ describe('collectTargets', () => {
 
 describe('getRequestedBsns', () => {
   it('returns the BSNs of a lookup by BSN', () => {
-    expect(getRequestedBsns({ type: 'RaadpleegMetBurgerservicenummer', burgerservicenummer: ['999971785', 1] })).toEqual(['999971785']);
+    expect(getRequestedBsns({ type: 'RaadpleegMetBurgerservicenummer', burgerservicenummer: ['999971785', '999999333'] }))
+      .toEqual(['999971785', '999999333']);
   });
 
   it('returns no BSNs for other search types', () => {
     expect(getRequestedBsns({ type: 'ZoekMetPostcodeEnHuisnummer', postcode: '6511PP' })).toEqual([]);
+    expect(getRequestedBsns({ type: 'ZoekMetPostcodeEnHuisnummer', burgerservicenummer: ['999971785'] })).toEqual([]);
     expect(getRequestedBsns(undefined)).toEqual([]);
+  });
+
+  it('ignores values that are not a 9 digit BSN', () => {
+    expect(getRequestedBsns({
+      type: 'RaadpleegMetBurgerservicenummer',
+      burgerservicenummer: ['999971785', 999999333, ' 999999333', '12345', 'abcdefghi'],
+    })).toEqual(['999971785']);
+  });
+
+  it('takes at most 20 BSNs, the Haal Centraal maximum', () => {
+    const bsns = Array.from({ length: 25 }, (_, i) => String(100000000 + i));
+    expect(getRequestedBsns({ type: 'RaadpleegMetBurgerservicenummer', burgerservicenummer: bsns })).toEqual(bsns.slice(0, 20));
   });
 });
 

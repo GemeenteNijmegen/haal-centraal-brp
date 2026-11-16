@@ -9,6 +9,7 @@ const dynamodb = new DynamoDBClient();
 const logger = new Logger({ serviceName: 'HaalCentraal' });
 
 const BSN_FIELD = 'burgerservicenummer';
+const MAX_REQUESTED_BSNS = 20; // Haal Centraal maximum for RaadpleegMetBurgerservicenummer
 const BATCH_SIZE = 25; // DynamoDB BatchWriteItem limit
 const MAX_ATTEMPTS = 4;
 export const UNKNOWN_HEADER_VALUE = 'onbekend';
@@ -256,12 +257,18 @@ export function parseResponseBody(body: string): any {
 
 /**
  * BSNs a personen request searches for. Only RaadpleegMetBurgerservicenummer has them.
+ * Values that are not a 9 digit BSN are ignored, and at most 20 are taken.
  * @param request Parsed personen request body
  * @returns BSNs from the request, empty for other search types
  */
 export function getRequestedBsns(request: any): string[] {
   const bsns = request?.[BSN_FIELD];
-  return Array.isArray(bsns) ? bsns.filter(bsn => typeof bsn === 'string') : [];
+  if (request?.type !== 'RaadpleegMetBurgerservicenummer' || !Array.isArray(bsns)) {
+    return [];
+  }
+  return bsns
+    .filter(bsn => typeof bsn === 'string' && /^\d{9}$/.test(bsn))
+    .slice(0, MAX_REQUESTED_BSNS);
 }
 
 /**
