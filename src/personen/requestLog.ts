@@ -52,12 +52,18 @@ export interface RequestLogHeaders {
   fscTransactionId?: string;
 }
 
-export interface RequestLogEntry {
+/**
+ * Request details from the API Gateway event, shared by all records of a request
+ */
+export interface RequestLogContext {
   requestId: string;
   requestTime: Date;
-  application: string;
   apiKeyId: string;
   endpoint: string;
+}
+
+export interface RequestLogEntry extends RequestLogContext {
+  application: string;
   requestType: string;
   /**
    * Fields as requested by the client, without fields added internally
@@ -65,6 +71,28 @@ export interface RequestLogEntry {
   fields: string[];
   statusCode: number;
   headers: RequestLogHeaders;
+}
+
+/**
+ * Take the request details to log from an API Gateway event.
+ * @param event API Gateway proxy event
+ * @returns Request id, time, API key id and endpoint
+ */
+export function getRequestLogContext(event: any): RequestLogContext {
+  const requestContext = event?.requestContext;
+  return {
+    requestId: requestContext?.requestId ?? crypto.randomUUID(),
+    requestTime: new Date(requestContext?.requestTimeEpoch ?? Date.now()),
+    apiKeyId: requestContext?.identity?.apiKeyId ?? 'unknown apiKeyId',
+    endpoint: event?.resource ?? event?.path ?? 'unknown',
+  };
+}
+
+/**
+ * Whether requests without gebruiker or doelbinding header are rejected in this environment
+ */
+export function requestLogHeadersRequired(): boolean {
+  return process.env.REQUIRE_REQUEST_LOG_HEADERS === 'true';
 }
 
 interface RequestLogHeaderOptions {

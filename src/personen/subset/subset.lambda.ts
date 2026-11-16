@@ -6,6 +6,7 @@ import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from '../callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from '../certBinding';
 import { initSecrets, PersonenSecrets } from '../initSecrets';
+import { collectTargets, getRequestLogContext, getRequestLogHeaders, RequestLogHeaders, requestLogHeadersRequired, writeRequestLog } from '../requestLog';
 import { getApplicationProfile, validateFields } from '../validateFields';
 import { createErrorResponse } from './errors/error-response';
 import { EndpointNotFoundError, HaalCentraalError, InvalidApplicationProfileError, InvalidBsnError, InvalidResourcePathError, MissingBsnError, NoPersonDataError } from './errors/subset-errors';
@@ -72,7 +73,18 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       throw new InvalidApplicationProfileError(fields);
     }
 
-    const { persoon, result } = await getPersonHaalCentraal(fields, bsn);
+    const requestLogHeaders = await getRequestLogHeaders(event.headers, {
+      enforce: requestLogHeadersRequired(),
+      application: profileName,
+    });
+
+    const result = await callHaalCentraal(requestJsonBody(fields, [bsn]), secrets);
+    const data = parseBody(result.body);
+
+    // Logged before checking the response, so errors and empty results are logged too
+    await logRequest(event, profileName, endpoint, fields, requestLogHeaders, bsn, result.statusCode, data);
+
+    const persoon = getPerson(result, data);
     const responseBody = subsetHandler.processResponse(persoon);
 
     return {
@@ -102,21 +114,47 @@ function getProfileName( profile: { fields: string[]; name: string; fingerprints
   return profileName;
 }
 
-async function getPersonHaalCentraal(fields: string[], bsn: string) {
-  const body = requestJsonBody(fields, [bsn]);
-  const result = await callHaalCentraal(body, secrets);
-
+function getPerson(result: { statusCode: number; body: string }, data: any) {
   // Check eerst of de status code in de 200 range zit
   if (result.statusCode < 200 || result.statusCode >= 300) {
     throw new HaalCentraalError(result.statusCode, result.body);
   }
   // Als parsen niet lukt dan wordt een algemene 500 gegooid
-  const data = JSON.parse(result.body);
+  if (data === undefined) {
+    throw new Error('Invalid JSON in Haal Centraal response');
+  }
   if (!data?.personen?.[0] || !data?.personen?.[0].burgerservicenummer) {
     throw new NoPersonDataError();
   }
-  const persoon = data.personen[0];
-  return { persoon, result };
+  return data.personen[0];
+}
+
+function parseBody(body: string): any {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+}
+
+async function logRequest(
+  event: APIGatewayProxyEvent,
+  application: string,
+  endpoint: string,
+  fields: string[],
+  headers: RequestLogHeaders,
+  bsn: string,
+  statusCode: number,
+  data: any,
+) {
+  await writeRequestLog({
+    ...getRequestLogContext(event),
+    application,
+    requestType: `subset:${endpoint}`,
+    fields,
+    statusCode,
+    headers,
+  }, collectTargets([bsn], statusCode, data), secrets.bsnHashSalt);
 }
 
 function requestJsonBody(fields: string[], bsn: string[]): string {

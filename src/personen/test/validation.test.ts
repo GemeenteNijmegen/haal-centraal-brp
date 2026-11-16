@@ -8,7 +8,9 @@ import { handler as handlerSubset } from '../subset/subset.lambda';
 import { getApplicationProfile, validateFields } from '../validateFields';
 
 jest.mock('node-fetch', () => jest.fn());
-jest.mock('../initSecrets'); // Set mockResolve seperately to prevent unused import
+jest.mock('../initSecrets', () => ({
+  initSecrets: jest.fn(() => Promise.resolve({ bsnHashSalt: 'test-salt' })),
+}));
 jest.spyOn(haal, 'callHaalCentraal').mockResolvedValue({
   statusCode: 200,
   body: JSON.stringify({
@@ -18,6 +20,7 @@ jest.spyOn(haal, 'callHaalCentraal').mockResolvedValue({
 });
 
 const ddbMock = mockClient(DynamoDBClient);
+const REQUEST_LOG_HEADERS = { 'x-gebruiker': 'medewerker-1', 'x-doelbinding': 'BRPACT-Totaal' };
 const cloudWatchMock = mockClient(CloudWatchClient);
 
 // A static, parseable self-signed client certificate used as a fixture for binding tests.
@@ -113,7 +116,7 @@ describe('handlersubset', () => {
     const event = {
       requestContext: { identity: { apiKey: 'test-api-key' } },
       resource: '/personen/burgerservicenummer/leeftijd',
-      headers: { 'x-bsn': '999971785' },
+      headers: { 'x-bsn': '999971785', ...REQUEST_LOG_HEADERS },
     } as any as APIGatewayProxyEvent;
 
     const result = await handlerSubset(event);
@@ -128,7 +131,7 @@ describe('handlersubset', () => {
     const event = {
       requestContext: { identity: { apiKey: 'test-api-key' } },
       resource: '/personen/burgerservicenummer/leeftijd',
-      headers: { 'x-bsn': '999971785' },
+      headers: { 'x-bsn': '999971785', ...REQUEST_LOG_HEADERS },
     } as any as APIGatewayProxyEvent;
 
     const result = await handlerSubset(event);
@@ -138,7 +141,7 @@ describe('handlersubset', () => {
         fields: ['burgerservicenummer', 'leeftijd'],
         burgerservicenummer: ['999971785'],
       }),
-      undefined, // secrets
+      { bsnHashSalt: 'test-salt' }, // secrets
     );
     expect(result.statusCode).toBe(200);
     expect(result.body).toEqual(JSON.stringify({ leeftijd: 37 }));
@@ -156,6 +159,7 @@ describe('log-only certificate binding (handler wiring)', () => {
 
     const event = {
       body: JSON.stringify({ fields: ['field1'] }),
+      headers: REQUEST_LOG_HEADERS,
       requestContext: { identity: { apiKey: 'test-api-key', apiKeyId: 'id', clientCert: { clientCertPem: CLIENT_CERT_PEM } } },
     } as any as APIGatewayProxyEvent;
 
@@ -170,6 +174,7 @@ describe('log-only certificate binding (handler wiring)', () => {
 
     const event = {
       body: JSON.stringify({ fields: ['field1'] }),
+      headers: REQUEST_LOG_HEADERS,
       requestContext: { identity: { apiKey: 'test-api-key', apiKeyId: 'id', clientCert: { clientCertPem: CLIENT_CERT_PEM } } },
     } as any as APIGatewayProxyEvent;
 
@@ -187,6 +192,7 @@ describe('log-only certificate binding (handler wiring)', () => {
 
     const event = {
       body: JSON.stringify({ fields: ['field1'] }),
+      headers: REQUEST_LOG_HEADERS,
       requestContext: { identity: { apiKey: 'test-api-key', apiKeyId: 'id' } },
     } as any as APIGatewayProxyEvent;
 
@@ -203,7 +209,7 @@ describe('log-only certificate binding (handler wiring)', () => {
     const event = {
       requestContext: { identity: { apiKey: 'test-api-key', apiKeyId: 'id', clientCert: { clientCertPem: CLIENT_CERT_PEM } } },
       resource: '/personen/burgerservicenummer/leeftijd',
-      headers: { 'x-bsn': '999971785' },
+      headers: { 'x-bsn': '999971785', ...REQUEST_LOG_HEADERS },
     } as any as APIGatewayProxyEvent;
 
     const result = await handlerSubset(event);
