@@ -16,7 +16,7 @@ Per bevraging wordt één record per betrokken persoon geschreven. Betrokken zij
 | `apiKeyId` | Id van de gebruikte API key (niet de key zelf) |
 | `gebruiker` / `gebruikerHeader` | Waarde en naam van de gebruikersheader, `onbekend` als die ontbreekt |
 | `doelbinding` / `doelbindingHeader` | Waarde en naam van de doelbindingheader, `onbekend` als die ontbreekt |
-| `verwerking` | Waarde van `x-verwerking`, als meegestuurd |
+| `verwerking` | Waarde van `x-verwerking` of `x-processing`, als meegestuurd |
 | `afnemerOin` | Waarde van `x-origin-oin` of `x-afnemer-oin`, als meegestuurd |
 | `fscTransactionId` | Waarde van `Fsc-Transaction-Id`, als meegestuurd |
 | `fields` | De velden die de applicatie heeft gevraagd |
