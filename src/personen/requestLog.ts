@@ -1,7 +1,26 @@
 import * as crypto from 'crypto';
+import { Logger } from '@aws-lambda-powertools/logger';
+import { CloudWatchClient, PutMetricDataCommand, StandardUnit } from '@aws-sdk/client-cloudwatch';
 import { AttributeValue } from '@aws-sdk/client-dynamodb';
+import { MissingRequestLogHeadersError } from './subset/errors/subset-errors';
+
+const cloudwatch = new CloudWatchClient({ region: 'eu-central-1' });
+const logger = new Logger({ serviceName: 'HaalCentraal' });
 
 const BSN_FIELD = 'burgerservicenummer';
+export const UNKNOWN_HEADER_VALUE = 'onbekend';
+
+/**
+ * Accepted request headers per logged value, in priority order. Header names are matched
+ * case-insensitively and the first header with a non-empty value is used.
+ */
+export const REQUEST_LOG_HEADERS = {
+  gebruiker: ['x-gebruiker', 'x-user', 'x-medewerker'],
+  doelbinding: ['x-doelbinding', 'x-purpose', 'x-doel'],
+  verwerking: ['x-verwerking', 'x-processing'],
+  afnemerOin: ['x-origin-oin', 'x-afnemer-oin'],
+  fscTransactionId: ['fsc-transaction-id'],
+};
 
 /**
  * Outcome for one person in a request log record.
@@ -43,6 +62,111 @@ export interface RequestLogEntry {
   fields: string[];
   statusCode: number;
   headers: RequestLogHeaders;
+}
+
+interface RequestLogHeaderOptions {
+  /**
+   * Reject the request when a required header is missing
+   */
+  enforce: boolean;
+  /**
+   * Application name, used in the missing header metric
+   */
+  application: string;
+}
+
+/**
+ * Read the values to log from the request headers.
+ * When gebruiker or doelbinding is missing the value is logged as 'onbekend' and a metric is
+ * emitted, or, when enforced, the request is rejected.
+ * @param headers Request headers
+ * @param options Enforcement and application name
+ * @returns Values to log
+ * @throws MissingRequestLogHeadersError when enforced and a required header is missing
+ */
+export async function getRequestLogHeaders(
+  headers: Record<string, string | undefined> | null | undefined,
+  options: RequestLogHeaderOptions,
+): Promise<RequestLogHeaders> {
+  const lowercased: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers ?? {})) {
+    if (value && value.trim().length > 0) {
+      lowercased[name.toLowerCase()] = value.trim();
+    }
+  }
+
+  const gebruiker = findHeader(lowercased, 'gebruiker');
+  const doelbinding = findHeader(lowercased, 'doelbinding');
+
+  const missing: { attribute: string; headers: string[] }[] = [];
+  if (!gebruiker) {
+    missing.push({ attribute: 'gebruiker', headers: REQUEST_LOG_HEADERS.gebruiker });
+  }
+  if (!doelbinding) {
+    missing.push({ attribute: 'doelbinding', headers: REQUEST_LOG_HEADERS.doelbinding });
+  }
+
+  if (missing.length > 0) {
+    if (options.enforce) {
+      throw new MissingRequestLogHeadersError(missing);
+    }
+    logger.warn('Missing request log headers', {
+      application: options.application,
+      missing: missing.map(m => m.attribute),
+    });
+    await emitMissingHeadersMetric(options.application);
+  }
+
+  const result: RequestLogHeaders = {
+    gebruiker: gebruiker?.value ?? UNKNOWN_HEADER_VALUE,
+    gebruikerHeader: gebruiker?.name,
+    doelbinding: doelbinding?.value ?? UNKNOWN_HEADER_VALUE,
+    doelbindingHeader: doelbinding?.name,
+    verwerking: findHeader(lowercased, 'verwerking')?.value,
+    afnemerOin: findHeader(lowercased, 'afnemerOin')?.value,
+    fscTransactionId: findHeader(lowercased, 'fscTransactionId')?.value,
+  };
+  return Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined)) as RequestLogHeaders;
+}
+
+function findHeader(headers: Record<string, string>, attribute: keyof typeof REQUEST_LOG_HEADERS) {
+  const present = REQUEST_LOG_HEADERS[attribute].filter(name => headers[name] !== undefined);
+  if (present.length === 0) {
+    return undefined;
+  }
+  if (new Set(present.map(name => headers[name])).size > 1) {
+    logger.warn('Conflicting request log headers, using the first', { attribute, headers: present });
+  }
+  return { name: present[0], value: headers[present[0]] };
+}
+
+/**
+ * Emit the missing request log headers metric. A metrics failure is logged and never
+ * breaks the request.
+ * @param application Application name used as the metric dimension
+ */
+async function emitMissingHeadersMetric(application: string): Promise<void> {
+  try {
+    await cloudwatch.send(new PutMetricDataCommand({
+      Namespace: 'HaalCentraal',
+      MetricData: [
+        {
+          MetricName: 'MissingRequestLogHeaders',
+          Dimensions: [
+            {
+              Name: 'Application',
+              Value: application.substring(0, 255), // CloudWatch dimension value limit
+            },
+          ],
+          Value: 1,
+          Unit: StandardUnit.Count,
+          Timestamp: new Date(),
+        },
+      ],
+    }));
+  } catch (error) {
+    logger.error('Error sending missing request log headers metric to CloudWatch', { error });
+  }
 }
 
 /**

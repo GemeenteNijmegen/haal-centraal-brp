@@ -1,11 +1,17 @@
+import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
+import { mockClient } from 'aws-sdk-client-mock';
 import {
   buildRequestLogItems,
   collectTargets,
+  getRequestLogHeaders,
   hashBsn,
   RequestLogEntry,
   stripBsnField,
   withBsnField,
 } from '../requestLog';
+import { MissingRequestLogHeadersError } from '../subset/errors/subset-errors';
+
+const cloudWatchMock = mockClient(CloudWatchClient);
 
 const SALT = 'test-salt';
 // HMAC-SHA256('test-salt', '999971785'), also reproducible with: printf '999971785' | openssl dgst -sha256 -hmac 'test-salt'
@@ -167,5 +173,110 @@ describe('buildRequestLogItems', () => {
   it('never stores the plain BSN', () => {
     const items = buildRequestLogItems(entry, [{ bsn: '999971785', resultaat: 'gevonden' }], SALT);
     expect(JSON.stringify(items)).not.toContain('999971785');
+  });
+});
+
+describe('getRequestLogHeaders', () => {
+  const options = { enforce: false, application: 'ApiKeyTest' };
+
+  beforeEach(() => {
+    cloudWatchMock.reset();
+    cloudWatchMock.on(PutMetricDataCommand).resolves({});
+  });
+
+  it('reads the primary headers', async () => {
+    const result = await getRequestLogHeaders({
+      'x-gebruiker': 'medewerker-1',
+      'x-doelbinding': 'BRPACT-Totaal',
+    }, options);
+    expect(result).toEqual({
+      gebruiker: 'medewerker-1',
+      gebruikerHeader: 'x-gebruiker',
+      doelbinding: 'BRPACT-Totaal',
+      doelbindingHeader: 'x-doelbinding',
+    });
+    expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(0);
+  });
+
+  it.each([
+    ['x-user', 'x-purpose'],
+    ['X-Medewerker', 'X-Doel'],
+  ])('accepts the alias headers %s and %s, case-insensitive', async (userHeader, doelbindingHeader) => {
+    const result = await getRequestLogHeaders({
+      [userHeader]: 'medewerker-1',
+      [doelbindingHeader]: 'BRPACT-Totaal',
+    }, options);
+    expect(result.gebruiker).toBe('medewerker-1');
+    expect(result.gebruikerHeader).toBe(userHeader.toLowerCase());
+    expect(result.doelbinding).toBe('BRPACT-Totaal');
+    expect(result.doelbindingHeader).toBe(doelbindingHeader.toLowerCase());
+  });
+
+  it('uses the first header in priority order when several are present', async () => {
+    const result = await getRequestLogHeaders({
+      'x-medewerker': 'from-medewerker',
+      'x-gebruiker': 'from-gebruiker',
+      'x-doelbinding': 'BRPACT-Totaal',
+    }, options);
+    expect(result.gebruiker).toBe('from-gebruiker');
+    expect(result.gebruikerHeader).toBe('x-gebruiker');
+  });
+
+  it('skips headers with an empty value', async () => {
+    const result = await getRequestLogHeaders({
+      'x-gebruiker': '  ',
+      'x-user': 'medewerker-1',
+      'x-doelbinding': 'BRPACT-Totaal',
+    }, options);
+    expect(result.gebruiker).toBe('medewerker-1');
+    expect(result.gebruikerHeader).toBe('x-user');
+  });
+
+  it('reads the optional headers when present', async () => {
+    const result = await getRequestLogHeaders({
+      'x-gebruiker': 'medewerker-1',
+      'x-doelbinding': 'BRPACT-Totaal',
+      'X-Verwerking': 'Burgerzaken',
+      'x-afnemer-oin': '00000001234567890000',
+      'Fsc-Transaction-Id': '018f6b1c-0000-7000-8000-000000000000',
+    }, options);
+    expect(result.verwerking).toBe('Burgerzaken');
+    expect(result.afnemerOin).toBe('00000001234567890000');
+    expect(result.fscTransactionId).toBe('018f6b1c-0000-7000-8000-000000000000');
+  });
+
+  it('logs onbekend and emits a metric when headers are missing and not enforced', async () => {
+    const result = await getRequestLogHeaders({ 'x-gebruiker': 'medewerker-1' }, options);
+    expect(result.gebruiker).toBe('medewerker-1');
+    expect(result.doelbinding).toBe('onbekend');
+    expect(result.doelbindingHeader).toBeUndefined();
+
+    const calls = cloudWatchMock.commandCalls(PutMetricDataCommand);
+    expect(calls).toHaveLength(1);
+    const input = calls[0].args[0].input;
+    expect(input.Namespace).toBe('HaalCentraal');
+    expect(input.MetricData?.[0].MetricName).toBe('MissingRequestLogHeaders');
+    expect(input.MetricData?.[0].Dimensions).toEqual([{ Name: 'Application', Value: 'ApiKeyTest' }]);
+  });
+
+  it('handles missing headers object', async () => {
+    const result = await getRequestLogHeaders(null, options);
+    expect(result.gebruiker).toBe('onbekend');
+    expect(result.doelbinding).toBe('onbekend');
+  });
+
+  it('does not fail when the metric cannot be sent', async () => {
+    cloudWatchMock.on(PutMetricDataCommand).rejects(new Error('CloudWatch down'));
+    await expect(getRequestLogHeaders({}, options)).resolves.toMatchObject({ gebruiker: 'onbekend' });
+  });
+
+  it('throws a 400 error when headers are missing and enforced', async () => {
+    const promise = getRequestLogHeaders({ 'x-gebruiker': 'medewerker-1' }, { ...options, enforce: true });
+    await expect(promise).rejects.toBeInstanceOf(MissingRequestLogHeadersError);
+    await expect(promise).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Missing required header for doelbinding (one of: x-doelbinding, x-purpose, x-doel)',
+    });
+    expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(0);
   });
 });
