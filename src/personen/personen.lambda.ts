@@ -4,6 +4,19 @@ import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from './callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from './certBinding';
 import { initSecrets, PersonenSecrets } from './initSecrets';
+import {
+  collectTargets,
+  getRequestedBsns,
+  getRequestLogContext,
+  getRequestLogHeaders,
+  parseResponseBody,
+  requestLogHeadersRequired,
+  stripBsnField,
+  withBsnField,
+  writeRequestLog,
+} from './requestLog';
+import { createErrorResponse } from './subset/errors/error-response';
+import { SubsetError } from './subset/errors/subset-errors';
 import { getApplicationProfile, validateFields } from './validateFields';
 
 let secrets: PersonenSecrets;
@@ -59,8 +72,29 @@ export async function handler(event: any): Promise<any> {
     const validProfile = validateFields(request.fields, profile.fields);
 
     if (validProfile) {
-      // Search...
-      return await callHaalCentraal(event.body, secrets); // in aparte file zetten
+      const requestLogHeaders = await getRequestLogHeaders(event.headers, {
+        enforce: requestLogHeadersRequired(),
+        application: profile.name,
+      });
+
+      // burgerservicenummer is always requested so the returned persons can be logged
+      const body = JSON.stringify({ ...request, fields: withBsnField(request.fields) });
+      const result = await callHaalCentraal(body, secrets);
+      const data = parseResponseBody(result.body);
+
+      await writeRequestLog({
+        ...getRequestLogContext(event),
+        application: profile.name,
+        requestType: request.type ?? 'unknown',
+        fields: request.fields,
+        statusCode: result.statusCode,
+        headers: requestLogHeaders,
+      }, collectTargets(getRequestedBsns(request), result.statusCode, data), secrets.bsnHashSalt);
+
+      if (data === undefined) {
+        return result;
+      }
+      return { ...result, body: JSON.stringify(stripBsnField(data, request.fields)) };
     } else {
       return {
         statusCode: '403', //Forbidden
@@ -69,6 +103,9 @@ export async function handler(event: any): Promise<any> {
       };
     }
   } catch (error) {
+    if (error instanceof SubsetError) {
+      return createErrorResponse(error, logger);
+    }
     console.error(error);
     return {
       statusCode: 500,

@@ -6,7 +6,7 @@ import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from '../callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from '../certBinding';
 import { initSecrets, PersonenSecrets } from '../initSecrets';
-import { collectTargets, getRequestLogContext, getRequestLogHeaders, RequestLogHeaders, requestLogHeadersRequired, writeRequestLog } from '../requestLog';
+import { collectTargets, getRequestLogContext, getRequestLogHeaders, parseResponseBody, RequestLogHeaders, requestLogHeadersRequired, writeRequestLog } from '../requestLog';
 import { getApplicationProfile, validateFields } from '../validateFields';
 import { createErrorResponse } from './errors/error-response';
 import { EndpointNotFoundError, HaalCentraalError, InvalidApplicationProfileError, InvalidBsnError, InvalidResourcePathError, MissingBsnError, NoPersonDataError } from './errors/subset-errors';
@@ -79,7 +79,7 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
     });
 
     const result = await callHaalCentraal(requestJsonBody(fields, [bsn]), secrets);
-    const data = parseBody(result.body);
+    const data = parseResponseBody(result.body);
 
     // Logged before checking the response, so errors and empty results are logged too
     await logRequest(event, profileName, endpoint, fields, requestLogHeaders, bsn, result.statusCode, data);
@@ -127,14 +127,6 @@ function getPerson(result: { statusCode: number; body: string }, data: any) {
     throw new NoPersonDataError();
   }
   return data.personen[0];
-}
-
-function parseBody(body: string): any {
-  try {
-    return JSON.parse(body);
-  } catch {
-    return undefined;
-  }
 }
 
 async function logRequest(

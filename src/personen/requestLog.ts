@@ -242,6 +242,29 @@ export function collectTargets(requestBsns: string[], statusCode: number, respon
 }
 
 /**
+ * Parse a Haal Centraal response body.
+ * @param body Response body
+ * @returns The parsed body, or undefined when it is not valid JSON
+ */
+export function parseResponseBody(body: string): any {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * BSNs a personen request searches for. Only RaadpleegMetBurgerservicenummer has them.
+ * @param request Parsed personen request body
+ * @returns BSNs from the request, empty for other search types
+ */
+export function getRequestedBsns(request: any): string[] {
+  const bsns = request?.[BSN_FIELD];
+  return Array.isArray(bsns) ? bsns.filter(bsn => typeof bsn === 'string') : [];
+}
+
+/**
  * Make sure burgerservicenummer is requested from Haal Centraal, so the persons in the
  * response can be logged.
  * @param fields Fields requested by the client

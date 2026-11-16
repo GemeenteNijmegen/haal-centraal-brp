@@ -4,6 +4,7 @@ import { mockClient } from 'aws-sdk-client-mock';
 import {
   buildRequestLogItems,
   collectTargets,
+  getRequestedBsns,
   getRequestLogHeaders,
   hashBsn,
   RequestLogEntry,
@@ -88,6 +89,17 @@ describe('collectTargets', () => {
 
   it('ignores empty BSN values', () => {
     expect(collectTargets(['', '  '], 200, { personen: [{ naam: {} }] })).toEqual([]);
+  });
+});
+
+describe('getRequestedBsns', () => {
+  it('returns the BSNs of a lookup by BSN', () => {
+    expect(getRequestedBsns({ type: 'RaadpleegMetBurgerservicenummer', burgerservicenummer: ['999971785', 1] })).toEqual(['999971785']);
+  });
+
+  it('returns no BSNs for other search types', () => {
+    expect(getRequestedBsns({ type: 'ZoekMetPostcodeEnHuisnummer', postcode: '6511PP' })).toEqual([]);
+    expect(getRequestedBsns(undefined)).toEqual([]);
   });
 });
 
