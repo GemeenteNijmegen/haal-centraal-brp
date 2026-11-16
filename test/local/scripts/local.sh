@@ -4,9 +4,11 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
+# Same values as cdk/localConfig.ts (region, account, apiId and stageName)
 REGION=eu-central-1
 ACCOUNT=000000000000
 API_URL=http://localhost:4566/_aws/execute-api/haal-centraal/prod
+FUNCTIONS="personen subset partnerfilter"
 
 export AWS_ENDPOINT_URL=http://localhost:4566
 export AWS_ACCESS_KEY_ID=test
@@ -25,8 +27,8 @@ Individual steps:
                   cdk deploy LocalHaalCentraalStack into MiniStack, then
                   seed the application profiles
   test            Run the tests in tests/ against the running stack
-  logs [function] Poll and print a Lambda's CloudWatch logs (default:
-                  personen, Ctrl-C to stop)
+  logs [function] Poll and print a Lambda's CloudWatch logs, function is one
+                  of: ${FUNCTIONS} (default: personen, Ctrl-C to stop)
 
 Combinations:
   start           down, up, deploy - full stack from scratch
@@ -74,7 +76,12 @@ cmd_logs() {
   # its --follow implementation reads event['eventId'] for client-side dedup,
   # which MiniStack's FilterLogEvents doesn't return. This polls
   # FilterLogEvents directly instead.
-  local log_group="/aws/lambda/local-${1:-personen}"
+  local name="${1:-personen}"
+  if [[ " ${FUNCTIONS} " != *" ${name} "* ]]; then
+    echo "Unknown function: ${name}, use one of: ${FUNCTIONS}" >&2
+    exit 1
+  fi
+  local log_group="/aws/lambda/local-${name}"
   local start_time
   start_time=$(($(date +%s) * 1000))
 

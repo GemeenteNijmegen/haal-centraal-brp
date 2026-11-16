@@ -80,6 +80,8 @@ export class LocalHaalCentraalStack extends Stack {
       BSN_HASH_SALT_ARN: bsnHashSalt.secretArn,
       REQUIRE_REQUEST_LOG_HEADERS: 'false',
       NODE_OPTIONS: '--enable-source-maps',
+      // Set by the projen-generated function classes in production
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
     };
 
     const api = new RestApi(this, 'api', {

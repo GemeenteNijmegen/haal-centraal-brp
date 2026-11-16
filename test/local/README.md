@@ -7,7 +7,9 @@ een gratis, open-source AWS-emulator. In plaats van de BRP API draait de
 RvIG. Er is geen AWS-account nodig.
 
 Alles staat in `test/local/`. Het hoort niet bij de productie-CDK-app
-(`src/main.ts`) of de pipeline, en `npx projen` raakt het niet aan.
+(`src/main.ts`) of de pipeline. `npx projen test` draait alleen de unittests
+van de lokale stack (`cdk/*.test.ts` en `lambda/*.test.ts`), niet de deploy of
+de tests tegen de draaiende stack.
 
 ## Onderdelen
 
@@ -29,8 +31,7 @@ en de secrets en parameters die de lambda's lezen. Alle lokale waarden staan in
 - Dependencies van de repo (`npm ci` in de root)
 - [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html),
   alleen voor `local.sh logs`
-- Poorten 4566 en 5010 vrij. De lokale opzet van mijn-nijmegen gebruikt ook
-  4566, draai ze niet tegelijk.
+- Poorten 4566 en 5010 vrij
 
 ## Starten
 
