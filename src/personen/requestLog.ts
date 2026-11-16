@@ -1,13 +1,16 @@
 import * as crypto from 'crypto';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { CloudWatchClient, PutMetricDataCommand, StandardUnit } from '@aws-sdk/client-cloudwatch';
-import { AttributeValue } from '@aws-sdk/client-dynamodb';
+import { AttributeValue, BatchWriteItemCommand, DynamoDBClient, WriteRequest } from '@aws-sdk/client-dynamodb';
 import { MissingRequestLogHeadersError } from './subset/errors/subset-errors';
 
 const cloudwatch = new CloudWatchClient({ region: 'eu-central-1' });
+const dynamodb = new DynamoDBClient();
 const logger = new Logger({ serviceName: 'HaalCentraal' });
 
 const BSN_FIELD = 'burgerservicenummer';
+const BATCH_SIZE = 25; // DynamoDB BatchWriteItem limit
+const MAX_ATTEMPTS = 4;
 export const UNKNOWN_HEADER_VALUE = 'onbekend';
 
 /**
@@ -280,6 +283,41 @@ export function buildRequestLogItems(entry: RequestLogEntry, targets: RequestLog
     }
     return item;
   });
+}
+
+/**
+ * Write the request log records for a request to the request log table.
+ * Throws when not every record could be written, so the caller can refuse to return data.
+ * @param entry Request details
+ * @param targets Persons the request concerns
+ * @param salt Secret salt for this environment
+ */
+export async function writeRequestLog(entry: RequestLogEntry, targets: RequestLogTarget[], salt: string): Promise<void> {
+  if (targets.length === 0) {
+    logger.info('No persons to log for request', { application: entry.application, requestType: entry.requestType });
+    return;
+  }
+
+  const tableName = process.env.REQUEST_LOG_TABLE_NAME!;
+  const requests: WriteRequest[] = buildRequestLogItems(entry, targets, salt).map(item => ({ PutRequest: { Item: item } }));
+
+  for (let i = 0; i < requests.length; i += BATCH_SIZE) {
+    let pending = requests.slice(i, i + BATCH_SIZE);
+    for (let attempt = 1; pending.length > 0 && attempt <= MAX_ATTEMPTS; attempt++) {
+      if (attempt > 1) {
+        await sleep(50 * 2 ** (attempt - 2));
+      }
+      const result = await dynamodb.send(new BatchWriteItemCommand({ RequestItems: { [tableName]: pending } }));
+      pending = result?.UnprocessedItems?.[tableName] ?? [];
+    }
+    if (pending.length > 0) {
+      throw new Error(`Could not write request log: ${pending.length} records unprocessed`);
+    }
+  }
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function unique(bsns: string[]): string[] {

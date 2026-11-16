@@ -1,4 +1,5 @@
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
+import { BatchWriteItemCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import {
   buildRequestLogItems,
@@ -6,12 +7,15 @@ import {
   getRequestLogHeaders,
   hashBsn,
   RequestLogEntry,
+  RequestLogTarget,
   stripBsnField,
   withBsnField,
+  writeRequestLog,
 } from '../requestLog';
 import { MissingRequestLogHeadersError } from '../subset/errors/subset-errors';
 
 const cloudWatchMock = mockClient(CloudWatchClient);
+const ddbMock = mockClient(DynamoDBClient);
 
 const SALT = 'test-salt';
 // HMAC-SHA256('test-salt', '999971785'), also reproducible with: printf '999971785' | openssl dgst -sha256 -hmac 'test-salt'
@@ -278,5 +282,72 @@ describe('getRequestLogHeaders', () => {
       message: 'Missing required header for doelbinding (one of: x-doelbinding, x-purpose, x-doel)',
     });
     expect(cloudWatchMock.commandCalls(PutMetricDataCommand)).toHaveLength(0);
+  });
+});
+
+describe('writeRequestLog', () => {
+  const entry: RequestLogEntry = {
+    requestId: 'req-1',
+    requestTime: new Date('2026-11-16T10:00:00.123Z'),
+    application: 'ApiKeyTest',
+    apiKeyId: 'key-id',
+    endpoint: '/personen',
+    requestType: 'RaadpleegMetBurgerservicenummer',
+    fields: ['naam'],
+    statusCode: 200,
+    headers: { gebruiker: 'medewerker-1', doelbinding: 'BRPACT-Totaal' },
+  };
+  const targets = (count: number): RequestLogTarget[] =>
+    Array.from({ length: count }, (_, i) => ({ bsn: String(100000000 + i), resultaat: 'gevonden' }));
+
+  beforeEach(() => {
+    ddbMock.reset();
+    process.env.REQUEST_LOG_TABLE_NAME = 'RequestLogTable';
+  });
+
+  it('writes one put request per target to the request log table', async () => {
+    ddbMock.on(BatchWriteItemCommand).resolves({});
+    await writeRequestLog(entry, targets(1), SALT);
+
+    const calls = ddbMock.commandCalls(BatchWriteItemCommand);
+    expect(calls).toHaveLength(1);
+    const requests = calls[0].args[0].input.RequestItems?.RequestLogTable;
+    expect(requests).toHaveLength(1);
+    expect(requests?.[0].PutRequest?.Item?.bsnHash).toEqual({ S: hashBsn('100000000', SALT) });
+  });
+
+  it('splits more than 25 targets into several batches', async () => {
+    ddbMock.on(BatchWriteItemCommand).resolves({});
+    await writeRequestLog(entry, targets(30), SALT);
+
+    const calls = ddbMock.commandCalls(BatchWriteItemCommand);
+    expect(calls.map(call => call.args[0].input.RequestItems?.RequestLogTable?.length)).toEqual([25, 5]);
+  });
+
+  it('retries unprocessed items', async () => {
+    ddbMock.on(BatchWriteItemCommand)
+      .resolvesOnce({ UnprocessedItems: { RequestLogTable: [{ PutRequest: { Item: { bsnHash: { S: 'x' } } } }] } })
+      .resolves({});
+    await writeRequestLog(entry, targets(2), SALT);
+
+    const calls = ddbMock.commandCalls(BatchWriteItemCommand);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].args[0].input.RequestItems?.RequestLogTable).toEqual([{ PutRequest: { Item: { bsnHash: { S: 'x' } } } }]);
+  });
+
+  it('throws when items stay unprocessed', async () => {
+    ddbMock.on(BatchWriteItemCommand)
+      .resolves({ UnprocessedItems: { RequestLogTable: [{ PutRequest: { Item: { bsnHash: { S: 'x' } } } }] } });
+    await expect(writeRequestLog(entry, targets(1), SALT)).rejects.toThrow('Could not write request log');
+  });
+
+  it('throws when DynamoDB fails', async () => {
+    ddbMock.on(BatchWriteItemCommand).rejects(new Error('DynamoDB down'));
+    await expect(writeRequestLog(entry, targets(1), SALT)).rejects.toThrow('DynamoDB down');
+  });
+
+  it('writes nothing when there are no targets', async () => {
+    await writeRequestLog(entry, [], SALT);
+    expect(ddbMock.commandCalls(BatchWriteItemCommand)).toHaveLength(0);
   });
 });
