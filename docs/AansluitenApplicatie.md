@@ -18,3 +18,6 @@ Zodra de set aan velden opgesteld zijn wordt de informatie gedeeld met de *behee
 
 ## 4. Bijwerken certificaat
 Als het certificaat van een applicatie verloopt zal er een nieuw certificaat gegenereerd moeten worden. Dit kan betekenen dat er een nieuw publiek certificaat gedeeld moet worden met de Haal Centraal koppeling. Als dit het geval is kan het nieuwe publieke certificaat gemaild worden naar de *beheerder* en zal het nieuwe certificaat ingeladen worden. 
+
+## 5. Headers voor het verwerkingenlog
+Elke bevraging wordt gelogd met de gebruiker en de doelbinding. De applicatie moet daarom bij elk verzoek de headers voor gebruiker en doelbinding meesturen (bijvoorbeeld `x-gebruiker` en `x-doelbinding`). Zie [Bevragen API](./BevragenApi.md#headers-voor-het-verwerkingenlog) voor de geaccepteerde headers en hoe je ze instelt in KISS en Open Formulieren.
