@@ -1,0 +1,9 @@
+# Local stand-in for Layer7, the gateway in front of the BRP API.
+#
+# The lambdas call https://haalcentraal.brp-mock/haalcentraal/api/brp/personen
+# (localConfig.brpEndpoint). Caddy serves that name with a certificate from
+# its internal CA and forwards to the personen-mock as is.
+haalcentraal.brp-mock {
+	tls internal
+	reverse_proxy personen-mock:8080
+}

@@ -1,0 +1,65 @@
+name: haal-centraal-local
+
+networks:
+  default:
+    name: haal-centraal-local
+
+services:
+  # Local AWS emulator (github.com/ministackorg/ministack). CDK deploys
+  # LocalHaalCentraalStack (REST API, Lambda, DynamoDB, secrets) into this,
+  # no AWS account needed. See test/local/README.md.
+  ministack:
+    image: ministackorg/ministack:1.5.41
+    ports:
+      - "4566:4566"
+    environment:
+      # The lambdas run nodejs24.x, which MiniStack only supports via the
+      # Docker executor.
+      - LAMBDA_EXECUTOR=docker
+      # Lets the Lambda containers MiniStack starts reach the other services
+      # in this file by name.
+      - DOCKER_NETWORK=haal-centraal-local
+      # Same region as production and cdk/localConfig.ts.
+      - MINISTACK_REGION=eu-central-1
+      # MiniStack points AWS_ENDPOINT_URL in Lambda containers at
+      # host.docker.internal, which Docker Engine on Linux doesn't resolve by
+      # itself. Harmless on Docker Desktop.
+      - LAMBDA_DOCKER_FLAGS=--add-host=host.docker.internal:host-gateway
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:4566/_ministack/health')",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  # The BRP API mock by RvIG, with the RvIG test persons
+  # (github.com/BRP-API/Haal-Centraal-BRP-bevragen). Applies `fields` like
+  # the real API. Reachable on localhost:5010 for direct calls.
+  personen-mock:
+    image: ghcr.io/brp-api/personen-mock:2.7.0-202610201628
+    ports:
+      - "5010:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Release
+
+  # Takes Layer7's role: https in front of the personen-mock. The lambdas
+  # always call the BRP API over https with a client certificate. Caddy uses
+  # its own internal CA, which the lambdas accept because DEV_MODE is on.
+  brp-mock-tls:
+    image: caddy:2.10.2-alpine
+    networks:
+      default:
+        aliases:
+          - haalcentraal.brp-mock
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - personen-mock

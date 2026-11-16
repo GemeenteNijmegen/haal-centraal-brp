@@ -35,4 +35,5 @@ const project = new GemeenteNijmegenCdkApp({
     },
   },
 });
+project.gitignore.exclude('test/local/cdk.out', 'test/local/.certs');
 project.synth();
