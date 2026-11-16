@@ -5,6 +5,17 @@ import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from '../callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from '../certBinding';
 import { PersonenSecrets, initSecrets } from '../initSecrets';
+import {
+  collectTargets,
+  getRequestedBsns,
+  getRequestLogContext,
+  getRequestLogHeaders,
+  parseResponseBody,
+  requestLogHeadersRequired,
+  stripBsnField,
+  withBsnField,
+  writeRequestLog,
+} from '../requestLog';
 import { createErrorResponse } from '../subset/errors/error-response';
 import {
   HaalCentraalError,
@@ -86,6 +97,11 @@ export async function handler(
       throw new InvalidApplicationProfileError(originalFields);
     }
 
+    const requestLogHeaders = await getRequestLogHeaders(event.headers, {
+      enforce: requestLogHeadersRequired(),
+      application: profileName,
+    });
+
     const hasPartnerFields = originalFields.some(
       (f) => f === 'partners' || f.startsWith('partners.'),
     );
@@ -94,14 +110,28 @@ export async function handler(
       ? addOntbindingField(originalFields)
       : originalFields;
 
-    const body = JSON.stringify({ ...request, fields: fieldsForRequest });
+    // burgerservicenummer is always requested so the returned persons can be logged
+    const body = JSON.stringify({ ...request, fields: withBsnField(fieldsForRequest) });
     const result = await callHaalCentraal(body, secrets);
+    const data = parseResponseBody(result.body);
+
+    // Logged before checking the response, so errors and empty results are logged too
+    await writeRequestLog({
+      ...getRequestLogContext(event),
+      application: profileName,
+      requestType: request.type ?? 'unknown',
+      fields: originalFields,
+      statusCode: result.statusCode,
+      headers: requestLogHeaders,
+    }, collectTargets(getRequestedBsns(request), result.statusCode, data), secrets.bsnHashSalt);
 
     if (result.statusCode < 200 || result.statusCode >= 300) {
       throw new HaalCentraalError(result.statusCode, result.body);
     }
 
-    const data = JSON.parse(result.body);
+    if (data === undefined) {
+      throw new Error('Invalid JSON in Haal Centraal response');
+    }
     if (!data?.personen?.[0]) {
       throw new NoPersonDataError();
     }
@@ -113,7 +143,7 @@ export async function handler(
 
     return {
       statusCode: result.statusCode,
-      body: JSON.stringify(filteredData),
+      body: JSON.stringify(stripBsnField(filteredData, originalFields)),
       headers: { 'Content-Type': 'application/json' },
     };
   } catch (error) {
