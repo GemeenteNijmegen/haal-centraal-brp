@@ -13,3 +13,6 @@ Ter voorbereiding op het aanvraagverzoek kunnen de volgende zaken alvast geregel
 - Publiek certificaat (en bijbehorende certificate chain)
 
 Voor het aanvraagproces zie [Aansluiten Applicatie](docs/AansluitenApplicatie.md)
+
+## Lokaal draaien
+De API is lokaal te draaien op MiniStack, met de BRP API-mock van het RvIG en zonder AWS-account. Zie [test/local](test/local/README.md).
