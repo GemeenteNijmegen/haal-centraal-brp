@@ -429,7 +429,7 @@ export class ApiStack extends Stack {
     requestFunction.addEnvironment('REQUEST_LOG_TABLE_NAME', requestLogTable.tableName);
     requestFunction.addEnvironment('BSN_HASH_SALT_ARN', bsnHashSalt.secretArn);
     requestFunction.addEnvironment('REQUIRE_REQUEST_LOG_HEADERS', this.configuration.requireRequestLogHeaders ? 'true' : 'false');
-    requestLogTable.grantWriteData(requestFunction);
+    requestLogTable.grant(requestFunction, 'dynamodb:BatchWriteItem');
     bsnHashSalt.grantRead(requestFunction);
   }
 

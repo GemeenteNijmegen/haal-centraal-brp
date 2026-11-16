@@ -91,7 +91,7 @@ describe('ApiStack request log', () => {
         PolicyDocument: {
           Statement: Match.arrayWith([
             Match.objectLike({
-              Action: Match.arrayWith(['dynamodb:BatchWriteItem']),
+              Action: 'dynamodb:BatchWriteItem',
               Resource: Match.arrayWith([{ 'Fn::GetAtt': [Match.stringLikeRegexp('requestlog'), 'Arn'] }]),
             }),
           ]),
@@ -99,5 +99,15 @@ describe('ApiStack request log', () => {
       },
     });
     expect(Object.keys(policies)).toHaveLength(3);
+  });
+
+  test('request lambdas cannot update or delete single request log records', () => {
+    const statements = Object.values(template.findResources('AWS::IAM::Policy'))
+      .flatMap((policy: any) => policy.Properties.PolicyDocument.Statement)
+      .filter((statement: any) => JSON.stringify(statement.Resource).includes('requestlog'));
+    const actions = statements.flatMap((statement: any) => [statement.Action].flat());
+    expect(actions).toContain('dynamodb:BatchWriteItem');
+    expect(actions).not.toContain('dynamodb:DeleteItem');
+    expect(actions).not.toContain('dynamodb:UpdateItem');
   });
 });
