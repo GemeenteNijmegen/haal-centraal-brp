@@ -27,17 +27,11 @@ const AUDIT_LOG_HEADERS = {
 };
 
 /**
- * Outcome for one person in an audit log record.
- * - gevonden: the person was returned
- * - geen-resultaat: the BSN was searched for but not returned
- * - fout: Haal Centraal returned an error for the request
+ * Where the BSNs in an audit log record come from.
+ * - antwoord: the persons in the Haal Centraal response
+ * - verzoek: the BSNs in the request, used when the response has no BSNs
  */
-type Resultaat = 'gevonden' | 'geen-resultaat' | 'fout';
-
-interface Target {
-  bsn: string;
-  resultaat: Resultaat;
-}
+type Bron = 'antwoord' | 'verzoek';
 
 /**
  * Values taken from the request headers. The *Header properties hold the name of the
@@ -80,11 +74,18 @@ export interface AuditLogOptions {
    * Secret salt for hashing BSNs in this environment
    */
   salt: string;
+  /**
+   * BSNs the request asks for, empty for a search on other data
+   */
+  requestBsns: string[];
 }
 
 /**
- * Audit log of a single request for person data: who asked which persons' data, for which
- * purpose, and what was returned. One record per person is written to the audit log table.
+ * Audit log of a single request for person data: who asked which persons' data and for which
+ * purpose. One record per person is written to the audit log table.
+ *
+ * Start it when the request comes in, to check the headers, and write it just before
+ * returning person data to the client.
  */
 export class AuditLog {
   /**
@@ -135,54 +136,24 @@ export class AuditLog {
   ) {}
 
   /**
-   * Make sure burgerservicenummer is requested from Haal Centraal, so the persons in the
-   * response can be logged.
-   * @param fields Fields to request from Haal Centraal
-   * @returns The fields including burgerservicenummer
-   */
-  withBsnField(fields: string[]): string[] {
-    if (fields.includes(BSN_FIELD)) {
-      return fields;
-    }
-    return [...fields, BSN_FIELD];
-  }
-
-  /**
-   * Remove burgerservicenummer from the returned persons when the client did not ask for it.
-   * @param data Parsed Haal Centraal response body
-   * @returns The response body as the client requested it
-   */
-  withoutBsnField(data: any): any {
-    if (this.options.fields.includes(BSN_FIELD) || !Array.isArray(data?.personen)) {
-      return data;
-    }
-    const personen = data.personen.map((persoon: any) => {
-      const rest = { ...persoon };
-      delete rest[BSN_FIELD];
-      return rest;
-    });
-    return { ...data, personen };
-  }
-
-  /**
-   * Write the audit log records for the Haal Centraal response: one per BSN that was searched
-   * for and per person that was returned. Write before checking the response, so errors and
-   * empty results are logged too.
+   * Write the audit log records, one per person. The persons are the BSNs in the response
+   * or, when the response has none, the BSNs in the request. When there are neither, nothing
+   * is written and a warning is logged.
    * Throws when not every record could be written, so the caller can refuse to return data.
-   * @param requestedBsns BSNs searched for, may be empty for searches
-   * @param result Haal Centraal response
-   * @returns The parsed response body, or undefined when it is not valid JSON
+   * @param responseBody Parsed Haal Centraal response body
    */
-  async write(requestedBsns: string[], result: { statusCode: number; body: string }): Promise<any> {
-    const data = parseBody(result.body);
-    const targets = collectTargets(requestedBsns, result.statusCode, data);
-    if (targets.length === 0) {
-      logger.info('No persons to log for request', { application: this.options.application, requestType: this.options.requestType });
-      return data;
+  async write(responseBody: any): Promise<void> {
+    const responseBsns = bsnsInResponse(responseBody);
+    const requestBsns = unique(this.options.requestBsns);
+    const bron: Bron = responseBsns.length > 0 ? 'antwoord' : 'verzoek';
+    const bsns = bron === 'antwoord' ? responseBsns : requestBsns;
+    if (bsns.length === 0) {
+      logger.warn('No BSNs to log for request', { application: this.options.application, requestType: this.options.requestType });
+      return;
     }
 
     const tableName = process.env.AUDIT_LOG_TABLE_NAME!;
-    const requests: WriteRequest[] = this.items(targets, result.statusCode).map(item => ({ PutRequest: { Item: item } }));
+    const requests: WriteRequest[] = this.items(bsns, bron).map(item => ({ PutRequest: { Item: item } }));
 
     for (let i = 0; i < requests.length; i += BATCH_SIZE) {
       let pending = requests.slice(i, i + BATCH_SIZE);
@@ -197,10 +168,9 @@ export class AuditLog {
         throw new Error(`Could not write audit log: ${pending.length} records unprocessed`);
       }
     }
-    return data;
   }
 
-  private items(targets: Target[], statusCode: number): Record<string, AttributeValue>[] {
+  private items(bsns: string[], bron: Bron): Record<string, AttributeValue>[] {
     const requestedAt = `${this.context.requestTime.toISOString()}#${this.context.requestId}`;
     const optional: Record<string, string | undefined> = {
       gebruikerHeader: this.headers.gebruikerHeader,
@@ -210,9 +180,9 @@ export class AuditLog {
       fscTransactionId: this.headers.fscTransactionId,
     };
 
-    return targets.map(target => {
+    return bsns.map(bsn => {
       const item: Record<string, AttributeValue> = {
-        bsnHash: { S: AuditLog.hashBsn(target.bsn, this.options.salt) },
+        bsnHash: { S: AuditLog.hashBsn(bsn, this.options.salt) },
         requestedAt: { S: requestedAt },
         requestId: { S: this.context.requestId },
         application: { S: this.options.application },
@@ -220,8 +190,7 @@ export class AuditLog {
         endpoint: { S: this.context.endpoint },
         requestType: { S: this.options.requestType },
         fields: { L: this.options.fields.map(field => ({ S: field })) },
-        statusCode: { N: String(statusCode) },
-        resultaat: { S: target.resultaat },
+        bron: { S: bron },
         gebruiker: { S: this.headers.gebruiker },
         doelbinding: { S: this.headers.doelbinding },
       };
@@ -326,42 +295,9 @@ async function emitMissingHeadersMetric(application: string): Promise<void> {
   }
 }
 
-/**
- * Determine the persons a request concerns: every BSN that was searched for and every
- * person that was returned.
- * @param requestBsns BSNs from the request (body or header), may be empty for searches
- * @param statusCode Status code of the Haal Centraal response
- * @param responseBody Parsed Haal Centraal response body
- * @returns One target per distinct BSN
- */
-function collectTargets(requestBsns: string[], statusCode: number, responseBody?: any): Target[] {
-  const requested = unique(requestBsns);
-
-  if (statusCode < 200 || statusCode >= 300) {
-    return requested.map(bsn => ({ bsn, resultaat: 'fout' }));
-  }
-
+function bsnsInResponse(responseBody: any): string[] {
   const personen: any[] = Array.isArray(responseBody?.personen) ? responseBody.personen : [];
-  const returned = unique(personen.map(persoon => persoon?.[BSN_FIELD]).filter(bsn => typeof bsn === 'string'));
-
-  const targets: Target[] = requested.map(bsn => ({
-    bsn,
-    resultaat: returned.includes(bsn) ? 'gevonden' : 'geen-resultaat',
-  }));
-  for (const bsn of returned) {
-    if (!requested.includes(bsn)) {
-      targets.push({ bsn, resultaat: 'gevonden' });
-    }
-  }
-  return targets;
-}
-
-function parseBody(body: string): any {
-  try {
-    return JSON.parse(body);
-  } catch {
-    return undefined;
-  }
+  return unique(personen.map(persoon => persoon?.[BSN_FIELD]).filter(bsn => typeof bsn === 'string'));
 }
 
 function sleep(ms: number) {

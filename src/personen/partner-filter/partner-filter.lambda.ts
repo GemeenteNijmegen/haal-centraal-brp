@@ -92,6 +92,7 @@ export async function handler(
       requestType: request.type ?? 'unknown',
       fields: originalFields,
       salt: secrets.bsnHashSalt,
+      requestBsns: AuditLog.requestedBsns(request),
     });
 
     const hasPartnerFields = originalFields.some(
@@ -102,18 +103,14 @@ export async function handler(
       ? addOntbindingField(originalFields)
       : originalFields;
 
-    // burgerservicenummer is always requested so the returned persons can be logged
-    const body = JSON.stringify({ ...request, fields: auditLog.withBsnField(fieldsForRequest) });
+    const body = JSON.stringify({ ...request, fields: fieldsForRequest });
     const result = await callHaalCentraal(body, secrets);
-    const data = await auditLog.write(AuditLog.requestedBsns(request), result);
 
     if (result.statusCode < 200 || result.statusCode >= 300) {
       throw new HaalCentraalError(result.statusCode, result.body);
     }
 
-    if (data === undefined) {
-      throw new Error('Invalid JSON in Haal Centraal response');
-    }
+    const data = JSON.parse(result.body);
     if (!data?.personen?.[0]) {
       throw new NoPersonDataError();
     }
@@ -123,9 +120,11 @@ export async function handler(
       ? filterDissolvedPartners(data)
       : data;
 
+    await auditLog.write(data);
+
     return {
       statusCode: result.statusCode,
-      body: JSON.stringify(auditLog.withoutBsnField(filteredData)),
+      body: JSON.stringify(filteredData),
       headers: { 'Content-Type': 'application/json' },
     };
   } catch (error) {

@@ -67,17 +67,15 @@ export async function handler(event: any): Promise<any> {
         requestType: request.type ?? 'unknown',
         fields: request.fields,
         salt: secrets.bsnHashSalt,
+        requestBsns: AuditLog.requestedBsns(request),
       });
 
-      // burgerservicenummer is always requested so the returned persons can be logged
-      const body = JSON.stringify({ ...request, fields: auditLog.withBsnField(request.fields) });
-      const result = await callHaalCentraal(body, secrets);
-      const data = await auditLog.write(AuditLog.requestedBsns(request), result);
+      const result = await callHaalCentraal(event.body, secrets);
 
-      if (data === undefined) {
-        return result;
+      if (result.statusCode >= 200 && result.statusCode < 300) {
+        await auditLog.write(parseJson(result.body));
       }
-      return { ...result, body: JSON.stringify(auditLog.withoutBsnField(data)) };
+      return result;
     } else {
       return {
         statusCode: '403', //Forbidden
@@ -102,5 +100,13 @@ export async function handler(event: any): Promise<any> {
       // Set back the facade segment as active again
       tracer?.setSegment(segment);
     }
+  }
+}
+
+function parseJson(body: string): any {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return undefined;
   }
 }

@@ -78,13 +78,15 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       requestType: `subset:${endpoint}`,
       fields,
       salt: secrets.bsnHashSalt,
+      requestBsns: [bsn],
     });
 
     const result = await callHaalCentraal(requestJsonBody(fields, [bsn]), secrets);
-    const data = await auditLog.write([bsn], result);
 
-    const persoon = getPerson(result, data);
+    const { data, persoon } = getPerson(result);
     const responseBody = subsetHandler.processResponse(persoon);
+
+    await auditLog.write(data);
 
     return {
       statusCode: result.statusCode,
@@ -113,19 +115,17 @@ function getProfileName( profile: { fields: string[]; name: string; fingerprints
   return profileName;
 }
 
-function getPerson(result: { statusCode: number; body: string }, data: any) {
+function getPerson(result: { statusCode: number; body: string }) {
   // Check eerst of de status code in de 200 range zit
   if (result.statusCode < 200 || result.statusCode >= 300) {
     throw new HaalCentraalError(result.statusCode, result.body);
   }
   // Als parsen niet lukt dan wordt een algemene 500 gegooid
-  if (data === undefined) {
-    throw new Error('Invalid JSON in Haal Centraal response');
-  }
+  const data = JSON.parse(result.body);
   if (!data?.personen?.[0] || !data?.personen?.[0].burgerservicenummer) {
     throw new NoPersonDataError();
   }
-  return data.personen[0];
+  return { data, persoon: data.personen[0] };
 }
 
 function requestJsonBody(fields: string[], bsn: string[]): string {

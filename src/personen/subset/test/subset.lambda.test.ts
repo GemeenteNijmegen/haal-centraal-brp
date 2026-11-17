@@ -664,8 +664,7 @@ describe('subset lambda handler', () => {
         endpoint: { S: '/personen/burgerservicenummer/leeftijd' },
         requestType: { S: 'subset:leeftijd' },
         fields: { L: [{ S: 'burgerservicenummer' }, { S: 'leeftijd' }] },
-        statusCode: { N: '200' },
-        resultaat: { S: 'gevonden' },
+        bron: { S: 'antwoord' },
         gebruiker: { S: 'medewerker-1' },
         gebruikerHeader: { S: 'x-gebruiker' },
         doelbinding: { S: 'BRPACT-Totaal' },
@@ -673,7 +672,7 @@ describe('subset lambda handler', () => {
       }]);
     });
 
-    it('writes a geen-resultaat record when the person is not found', async () => {
+    it('writes no record when the person is not found', async () => {
       setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
       mockCallHaalCentraal.mockResolvedValue({
         statusCode: 200,
@@ -684,11 +683,10 @@ describe('subset lambda handler', () => {
       const result = await handler(createValidEvent());
 
       expect(result.statusCode).toBe(404);
-      expect(writtenItems()).toHaveLength(1);
-      expect(writtenItems()[0]?.resultaat).toEqual({ S: 'geen-resultaat' });
+      expect(writtenItems()).toHaveLength(0);
     });
 
-    it('writes a fout record when Haal Centraal returns an error', async () => {
+    it('writes no record when Haal Centraal returns an error', async () => {
       setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
       mockCallHaalCentraal.mockResolvedValue({
         statusCode: 400,
@@ -699,8 +697,7 @@ describe('subset lambda handler', () => {
       const result = await handler(createValidEvent());
 
       expect(result.statusCode).toBe(400);
-      expect(writtenItems()[0]?.resultaat).toEqual({ S: 'fout' });
-      expect(writtenItems()[0]?.statusCode).toEqual({ N: '400' });
+      expect(writtenItems()).toHaveLength(0);
     });
 
     it('returns 500 without person data when the record cannot be written', async () => {

@@ -59,19 +59,37 @@ describe('personen lambda handler audit log', () => {
     .flatMap(call => call.args[0].input.RequestItems?.AuditLogTable ?? [])
     .map(request => request.PutRequest?.Item);
 
-  it('writes gevonden and geen-resultaat records for a lookup by BSN', async () => {
-    respondWith(200, {
-      type: 'RaadpleegMetBurgerservicenummer',
-      personen: [{ burgerservicenummer: '999971785', naam: { voornamen: 'A' } }],
-    });
+  const postcodeSearch = (fields: string[]) => ({
+    type: 'ZoekMetPostcodeEnHuisnummer',
+    fields,
+    postcode: '6511PP',
+    huisnummer: 1,
+  });
 
-    const result = await handler(createEvent({
+  it('sends the request to Haal Centraal and returns the response unchanged', async () => {
+    const response = {
+      type: 'RaadpleegMetBurgerservicenummer',
+      personen: [{ naam: { voornamen: 'A' } }],
+    };
+    respondWith(200, response);
+    const request = { type: 'RaadpleegMetBurgerservicenummer', fields: ['naam'], burgerservicenummer: ['999971785'] };
+
+    const result = await handler(createEvent(request));
+
+    expect(JSON.parse(mockCallHaalCentraal.mock.calls[0][0])).toEqual(request);
+    expect(result.statusCode).toBe(200);
+    expect(JSON.parse(result.body)).toEqual(response);
+  });
+
+  it('logs the requested BSNs when the response has no BSNs', async () => {
+    respondWith(200, { personen: [{ naam: { voornamen: 'A' } }] });
+
+    await handler(createEvent({
       type: 'RaadpleegMetBurgerservicenummer',
       fields: ['naam'],
       burgerservicenummer: ['999971785', '999999333'],
     }));
 
-    expect(result.statusCode).toBe(200);
     const items = writtenItems();
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({
@@ -81,78 +99,49 @@ describe('personen lambda handler audit log', () => {
       endpoint: { S: '/personen' },
       requestType: { S: 'RaadpleegMetBurgerservicenummer' },
       fields: { L: [{ S: 'naam' }] },
-      resultaat: { S: 'gevonden' },
+      bron: { S: 'verzoek' },
       gebruiker: { S: 'medewerker-1' },
       doelbinding: { S: 'BRPACT-Totaal' },
     });
-    expect(items[1]).toMatchObject({
-      bsnHash: { S: AuditLog.hashBsn('999999333', SALT) },
-      resultaat: { S: 'geen-resultaat' },
-    });
+    expect(items[1]).toMatchObject({ bsnHash: { S: AuditLog.hashBsn('999999333', SALT) }, bron: { S: 'verzoek' } });
   });
 
-  it('requests burgerservicenummer and strips it from the response when the client did not ask for it', async () => {
-    respondWith(200, {
-      type: 'ZoekMetPostcodeEnHuisnummer',
-      personen: [
-        { burgerservicenummer: '999971785', naam: { voornamen: 'A' } },
-        { burgerservicenummer: '999999333', naam: { voornamen: 'B' } },
-      ],
-    });
+  it('logs only the returned persons when the response has BSNs', async () => {
+    respondWith(200, { personen: [{ burgerservicenummer: '999971785' }] });
 
-    const result = await handler(createEvent({
-      type: 'ZoekMetPostcodeEnHuisnummer',
-      fields: ['naam'],
-      postcode: '6511PP',
-      huisnummer: 1,
+    await handler(createEvent({
+      type: 'RaadpleegMetBurgerservicenummer',
+      fields: ['burgerservicenummer'],
+      burgerservicenummer: ['999971785', '999999333'],
     }));
 
-    expect(JSON.parse(mockCallHaalCentraal.mock.calls[0][0])).toEqual({
-      type: 'ZoekMetPostcodeEnHuisnummer',
-      fields: ['naam', 'burgerservicenummer'],
-      postcode: '6511PP',
-      huisnummer: 1,
-    });
-    expect(result.statusCode).toBe(200);
-    expect(JSON.parse(result.body)).toEqual({
-      type: 'ZoekMetPostcodeEnHuisnummer',
-      personen: [{ naam: { voornamen: 'A' } }, { naam: { voornamen: 'B' } }],
-    });
+    expect(writtenItems().map(item => [item?.bsnHash.S, item?.bron.S])).toEqual([
+      [AuditLog.hashBsn('999971785', SALT), 'antwoord'],
+    ]);
+  });
+
+  it('logs the persons found by a search on other data', async () => {
+    respondWith(200, { personen: [{ burgerservicenummer: '999971785' }, { burgerservicenummer: '999999333' }] });
+
+    await handler(createEvent(postcodeSearch(['burgerservicenummer', 'naam'])));
+
     expect(writtenItems().map(item => item?.bsnHash.S)).toEqual([
       AuditLog.hashBsn('999971785', SALT),
       AuditLog.hashBsn('999999333', SALT),
     ]);
-    expect(writtenItems()[0]?.fields).toEqual({ L: [{ S: 'naam' }] });
   });
 
-  it('keeps burgerservicenummer in the response when the client asked for it', async () => {
-    respondWith(200, { personen: [{ burgerservicenummer: '999971785' }] });
+  it('writes no record for a search on other data without BSNs in the response', async () => {
+    respondWith(200, { personen: [{ naam: { voornamen: 'A' } }] });
 
-    const result = await handler(createEvent({
-      type: 'ZoekMetPostcodeEnHuisnummer',
-      fields: ['burgerservicenummer'],
-      postcode: '6511PP',
-      huisnummer: 1,
-    }));
-
-    expect(JSON.parse(result.body)).toEqual({ personen: [{ burgerservicenummer: '999971785' }] });
-  });
-
-  it('writes no record for a search without hits', async () => {
-    respondWith(200, { type: 'ZoekMetPostcodeEnHuisnummer', personen: [] });
-
-    const result = await handler(createEvent({
-      type: 'ZoekMetPostcodeEnHuisnummer',
-      fields: ['naam'],
-      postcode: '6511PP',
-      huisnummer: 1,
-    }));
+    const result = await handler(createEvent(postcodeSearch(['naam'])));
 
     expect(result.statusCode).toBe(200);
+    expect(JSON.parse(result.body)).toEqual({ personen: [{ naam: { voornamen: 'A' } }] });
     expect(writtenItems()).toHaveLength(0);
   });
 
-  it('writes fout records and passes the Haal Centraal error on', async () => {
+  it('passes a Haal Centraal error on without writing a record', async () => {
     respondWith(400, { title: 'Bad request' });
 
     const result = await handler(createEvent({
@@ -163,7 +152,7 @@ describe('personen lambda handler audit log', () => {
 
     expect(result.statusCode).toBe(400);
     expect(JSON.parse(result.body)).toEqual({ title: 'Bad request' });
-    expect(writtenItems()[0]).toMatchObject({ resultaat: { S: 'fout' }, statusCode: { N: '400' } });
+    expect(writtenItems()).toHaveLength(0);
   });
 
   it('returns 500 without person data when the record cannot be written', async () => {

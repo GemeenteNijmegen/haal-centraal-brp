@@ -1,3 +1,4 @@
+import { Logger } from '@aws-lambda-powertools/logger';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { BatchWriteItemCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
@@ -25,12 +26,13 @@ function event(headers: Record<string, string | undefined> | null = HEADERS) {
   };
 }
 
-function start(headers?: Record<string, string | undefined> | null, fields: string[] = ['naam']) {
+function start(headers?: Record<string, string | undefined> | null, requestBsns: string[] = ['999971785']) {
   return AuditLog.start(event(headers), {
     application: 'ApiKeyTest',
     requestType: 'RaadpleegMetBurgerservicenummer',
-    fields,
+    fields: ['naam'],
     salt: SALT,
+    requestBsns,
   });
 }
 
@@ -40,12 +42,8 @@ function writtenItems() {
     .map(request => request.PutRequest?.Item ?? {});
 }
 
-function resultaten() {
-  return writtenItems().map(item => ({ bsnHash: item.bsnHash.S, resultaat: item.resultaat.S }));
-}
-
-function ok(body: any) {
-  return { statusCode: 200, body: JSON.stringify(body) };
+function bronnen() {
+  return writtenItems().map(item => ({ bsnHash: item.bsnHash.S, bron: item.bron.S }));
 }
 
 beforeEach(() => {
@@ -96,51 +94,9 @@ describe('AuditLog.requestedBsns', () => {
   });
 });
 
-describe('withBsnField', () => {
-  it('adds burgerservicenummer when missing', async () => {
-    const auditLog = await start();
-    expect(auditLog.withBsnField(['naam'])).toEqual(['naam', 'burgerservicenummer']);
-  });
-
-  it('leaves the fields alone when burgerservicenummer is present', async () => {
-    const auditLog = await start();
-    const fields = ['burgerservicenummer', 'naam'];
-    expect(auditLog.withBsnField(fields)).toBe(fields);
-  });
-});
-
-describe('withoutBsnField', () => {
-  const data = {
-    type: 'ZoekMetPostcodeEnHuisnummer',
-    personen: [
-      { burgerservicenummer: '999971785', naam: { voornamen: 'A' }, partners: [{ burgerservicenummer: '999999333' }] },
-    ],
-  };
-
-  it('removes burgerservicenummer from each person when it was not requested', async () => {
-    const auditLog = await start(HEADERS, ['naam', 'partners']);
-    expect(auditLog.withoutBsnField(data)).toEqual({
-      type: 'ZoekMetPostcodeEnHuisnummer',
-      personen: [
-        { naam: { voornamen: 'A' }, partners: [{ burgerservicenummer: '999999333' }] },
-      ],
-    });
-  });
-
-  it('keeps burgerservicenummer when it was requested', async () => {
-    const auditLog = await start(HEADERS, ['burgerservicenummer', 'naam']);
-    expect(auditLog.withoutBsnField(data)).toBe(data);
-  });
-
-  it('leaves a body without personen alone', async () => {
-    const auditLog = await start();
-    expect(auditLog.withoutBsnField({ title: 'error' })).toEqual({ title: 'error' });
-  });
-});
-
 describe('AuditLog.start', () => {
   it('reads the primary headers', async () => {
-    await (await start()).write(['999971785'], ok({ personen: [] }));
+    await (await start()).write({ personen: [] });
     expect(writtenItems()[0]).toMatchObject({
       gebruiker: { S: 'medewerker-1' },
       gebruikerHeader: { S: 'x-gebruiker' },
@@ -155,7 +111,7 @@ describe('AuditLog.start', () => {
     ['X-Medewerker', 'X-Doel'],
   ])('accepts the alias headers %s and %s, case-insensitive', async (userHeader, doelbindingHeader) => {
     const auditLog = await start({ [userHeader]: 'medewerker-1', [doelbindingHeader]: 'BRPACT-Totaal' });
-    await auditLog.write(['999971785'], ok({ personen: [] }));
+    await auditLog.write({ personen: [] });
     expect(writtenItems()[0]).toMatchObject({
       gebruiker: { S: 'medewerker-1' },
       gebruikerHeader: { S: userHeader.toLowerCase() },
@@ -170,13 +126,13 @@ describe('AuditLog.start', () => {
       'x-gebruiker': 'from-gebruiker',
       'x-doelbinding': 'BRPACT-Totaal',
     });
-    await auditLog.write(['999971785'], ok({ personen: [] }));
+    await auditLog.write({ personen: [] });
     expect(writtenItems()[0]).toMatchObject({ gebruiker: { S: 'from-gebruiker' }, gebruikerHeader: { S: 'x-gebruiker' } });
   });
 
   it('skips headers with an empty value', async () => {
     const auditLog = await start({ 'x-gebruiker': '  ', 'x-user': 'medewerker-1', 'x-doelbinding': 'BRPACT-Totaal' });
-    await auditLog.write(['999971785'], ok({ personen: [] }));
+    await auditLog.write({ personen: [] });
     expect(writtenItems()[0]).toMatchObject({ gebruiker: { S: 'medewerker-1' }, gebruikerHeader: { S: 'x-user' } });
   });
 
@@ -187,7 +143,7 @@ describe('AuditLog.start', () => {
       'x-afnemer-oin': '00000001234567890000',
       'Fsc-Transaction-Id': '018f6b1c-0000-7000-8000-000000000000',
     });
-    await auditLog.write(['999971785'], ok({ personen: [] }));
+    await auditLog.write({ personen: [] });
     expect(writtenItems()[0]).toMatchObject({
       verwerking: { S: 'Burgerzaken' },
       afnemerOin: { S: '00000001234567890000' },
@@ -197,7 +153,7 @@ describe('AuditLog.start', () => {
 
   it('logs onbekend and emits a metric when headers are missing and not enforced', async () => {
     const auditLog = await start({ 'x-gebruiker': 'medewerker-1' });
-    await auditLog.write(['999971785'], ok({ personen: [] }));
+    await auditLog.write({ personen: [] });
     const item = writtenItems()[0];
     expect(item.gebruiker).toEqual({ S: 'medewerker-1' });
     expect(item.doelbinding).toEqual({ S: 'onbekend' });
@@ -213,7 +169,7 @@ describe('AuditLog.start', () => {
 
   it('handles a missing headers object', async () => {
     const auditLog = await start(null);
-    await auditLog.write(['999971785'], ok({ personen: [] }));
+    await auditLog.write({ personen: [] });
     expect(writtenItems()[0]).toMatchObject({ gebruiker: { S: 'onbekend' }, doelbinding: { S: 'onbekend' } });
   });
 
@@ -238,12 +194,11 @@ describe('write', () => {
   const hash = (bsn: string) => AuditLog.hashBsn(bsn, SALT);
 
   it('writes one item per person with the hashed BSN as key', async () => {
-    const auditLog = await start({ ...HEADERS, 'fsc-transaction-id': 'fsc-1' });
-    await auditLog.write(['999971785', '999999333'], ok({ personen: [{ burgerservicenummer: '999971785' }] }));
+    const auditLog = await start({ ...HEADERS, 'fsc-transaction-id': 'fsc-1' }, ['999971785', '999999333']);
+    await auditLog.write({ personen: [{ burgerservicenummer: '999971785' }] });
 
     const items = writtenItems();
-    expect(items).toHaveLength(2);
-    expect(items[0]).toEqual({
+    expect(items).toEqual([{
       bsnHash: { S: HASH_999971785 },
       requestedAt: { S: '2026-11-16T10:00:00.123Z#req-1' },
       requestId: { S: 'req-1' },
@@ -252,66 +207,61 @@ describe('write', () => {
       endpoint: { S: '/personen' },
       requestType: { S: 'RaadpleegMetBurgerservicenummer' },
       fields: { L: [{ S: 'naam' }] },
-      statusCode: { N: '200' },
-      resultaat: { S: 'gevonden' },
+      bron: { S: 'antwoord' },
       gebruiker: { S: 'medewerker-1' },
       gebruikerHeader: { S: 'x-gebruiker' },
       doelbinding: { S: 'BRPACT-Totaal' },
       doelbindingHeader: { S: 'x-doelbinding' },
       fscTransactionId: { S: 'fsc-1' },
-    });
-    expect(items[1].resultaat).toEqual({ S: 'geen-resultaat' });
+    }]);
   });
 
   it('never stores the plain BSN', async () => {
-    await (await start()).write(['999971785'], ok({ personen: [{ burgerservicenummer: '999971785' }] }));
+    await (await start()).write({ personen: [{ burgerservicenummer: '999971785' }] });
     expect(JSON.stringify(writtenItems())).not.toContain('999971785');
   });
 
-  it('returns the parsed response body', async () => {
-    const body = { personen: [{ burgerservicenummer: '999971785' }] };
-    await expect((await start()).write(['999971785'], ok(body))).resolves.toEqual(body);
+  it('logs the persons in the response, not the requested BSNs', async () => {
+    await (await start(HEADERS, ['999971785', '999999333'])).write({ personen: [{ burgerservicenummer: '999999333' }] });
+    expect(bronnen()).toEqual([{ bsnHash: hash('999999333'), bron: 'antwoord' }]);
   });
 
-  it('returns undefined for a response body that is not JSON', async () => {
-    await expect((await start()).write(['999971785'], { statusCode: 200, body: 'not json' })).resolves.toBeUndefined();
-    expect(resultaten()).toEqual([{ bsnHash: HASH_999971785, resultaat: 'geen-resultaat' }]);
-  });
-
-  it('adds returned persons from a search without requested BSNs', async () => {
-    await (await start()).write([], ok({ personen: [{ burgerservicenummer: '999971785' }, { burgerservicenummer: '999999333' }] }));
-    expect(resultaten()).toEqual([
-      { bsnHash: hash('999971785'), resultaat: 'gevonden' },
-      { bsnHash: hash('999999333'), resultaat: 'gevonden' },
+  it('logs the persons in the response of a search without requested BSNs', async () => {
+    await (await start(HEADERS, [])).write({ personen: [{ burgerservicenummer: '999971785' }, { burgerservicenummer: '999999333' }] });
+    expect(bronnen()).toEqual([
+      { bsnHash: hash('999971785'), bron: 'antwoord' },
+      { bsnHash: hash('999999333'), bron: 'antwoord' },
     ]);
+  });
+
+  it('logs the requested BSNs when the response has none', async () => {
+    await (await start(HEADERS, ['999971785', '999999333'])).write({ personen: [{ naam: {} }] });
+    expect(bronnen()).toEqual([
+      { bsnHash: hash('999971785'), bron: 'verzoek' },
+      { bsnHash: hash('999999333'), bron: 'verzoek' },
+    ]);
+  });
+
+  it('logs the requested BSNs when there is no response body', async () => {
+    await (await start()).write(undefined);
+    expect(bronnen()).toEqual([{ bsnHash: HASH_999971785, bron: 'verzoek' }]);
   });
 
   it('deduplicates BSNs', async () => {
-    await (await start()).write(['999971785', ' 999971785'], ok({ personen: [{ burgerservicenummer: '999971785' }, { burgerservicenummer: '999971785' }] }));
-    expect(resultaten()).toEqual([{ bsnHash: HASH_999971785, resultaat: 'gevonden' }]);
+    await (await start()).write({ personen: [{ burgerservicenummer: '999971785' }, { burgerservicenummer: ' 999971785' }] });
+    expect(bronnen()).toEqual([{ bsnHash: HASH_999971785, bron: 'antwoord' }]);
   });
 
-  it('marks every requested BSN as fout when Haal Centraal returns an error', async () => {
-    await (await start()).write(['999971785', '999999333'], { statusCode: 400, body: JSON.stringify({ title: 'Bad request' }) });
-    expect(resultaten()).toEqual([
-      { bsnHash: hash('999971785'), resultaat: 'fout' },
-      { bsnHash: hash('999999333'), resultaat: 'fout' },
-    ]);
-    expect(writtenItems()[0].statusCode).toEqual({ N: '400' });
-  });
-
-  it('marks requested BSNs as geen-resultaat when the body has no personen', async () => {
-    await (await start()).write(['999971785'], ok({}));
-    expect(resultaten()).toEqual([{ bsnHash: HASH_999971785, resultaat: 'geen-resultaat' }]);
-  });
-
-  it('writes nothing for a search without BSN and without hits', async () => {
-    await (await start()).write([], ok({ personen: [] }));
+  it('writes nothing and warns for a search without requested BSNs and without BSNs in the response', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn');
+    await (await start(HEADERS, [])).write({ personen: [{ naam: {} }] });
     expect(ddbMock.commandCalls(BatchWriteItemCommand)).toHaveLength(0);
+    expect(warn).toHaveBeenCalledWith('No BSNs to log for request', { application: 'ApiKeyTest', requestType: 'RaadpleegMetBurgerservicenummer' });
+    warn.mockRestore();
   });
 
   it('ignores empty BSN values', async () => {
-    await (await start()).write(['', '  '], ok({ personen: [{ naam: {} }] }));
+    await (await start(HEADERS, ['', '  '])).write({ personen: [{ burgerservicenummer: '' }] });
     expect(ddbMock.commandCalls(BatchWriteItemCommand)).toHaveLength(0);
   });
 
@@ -320,14 +270,14 @@ describe('write', () => {
     const unprocessed = { AuditLogTable: [{ PutRequest: { Item: { bsnHash: { S: 'x' } } } }] };
 
     it('splits more than 25 persons into several batches', async () => {
-      await (await start()).write(bsns(30), ok({ personen: [] }));
+      await (await start(HEADERS, bsns(30))).write({ personen: [] });
       const calls = ddbMock.commandCalls(BatchWriteItemCommand);
       expect(calls.map(call => call.args[0].input.RequestItems?.AuditLogTable?.length)).toEqual([25, 5]);
     });
 
     it('retries unprocessed items', async () => {
       ddbMock.on(BatchWriteItemCommand).resolvesOnce({ UnprocessedItems: unprocessed }).resolves({});
-      await (await start()).write(bsns(2), ok({ personen: [] }));
+      await (await start(HEADERS, bsns(2))).write({ personen: [] });
 
       const calls = ddbMock.commandCalls(BatchWriteItemCommand);
       expect(calls).toHaveLength(2);
@@ -336,13 +286,13 @@ describe('write', () => {
 
     it('throws when items stay unprocessed', async () => {
       ddbMock.on(BatchWriteItemCommand).resolves({ UnprocessedItems: unprocessed });
-      await expect((await start()).write(bsns(1), ok({ personen: [] }))).rejects.toThrow('Could not write audit log');
+      await expect((await start(HEADERS, bsns(1))).write({ personen: [] })).rejects.toThrow('Could not write audit log');
       expect(ddbMock.commandCalls(BatchWriteItemCommand)).toHaveLength(4);
     });
 
     it('throws when DynamoDB fails', async () => {
       ddbMock.on(BatchWriteItemCommand).rejects(new Error('DynamoDB down'));
-      await expect((await start()).write(bsns(1), ok({ personen: [] }))).rejects.toThrow('DynamoDB down');
+      await expect((await start(HEADERS, bsns(1))).write({ personen: [] })).rejects.toThrow('DynamoDB down');
     });
   });
 });

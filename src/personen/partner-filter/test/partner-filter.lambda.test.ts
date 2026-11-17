@@ -517,7 +517,6 @@ describe('partner filter lambda handler', () => {
           'partners.naam.voornamen',
           'partners.geboorte.datum',
           'partners.ontbindingHuwelijkPartnerschap',
-          'burgerservicenummer',
         ],
       },
       {
@@ -530,7 +529,6 @@ describe('partner filter lambda handler', () => {
         expectedFields: [
           'partners.naam.voornamen',
           'partners.ontbindingHuwelijkPartnerschap',
-          'burgerservicenummer',
         ],
       },
       {
@@ -826,49 +824,65 @@ describe('partner filter lambda handler', () => {
         endpoint: { S: '/partnerfilter/personen' },
         requestType: { S: 'RaadpleegMetBurgerservicenummer' },
         fields: { L: [{ S: 'naam.volledigeNaam' }, { S: 'partners' }] },
-        resultaat: { S: 'gevonden' },
+        bron: { S: 'antwoord' },
         gebruiker: { S: 'medewerker-1' },
         doelbinding: { S: 'BRPACT-Totaal' },
       })]);
     });
 
-    it('strips burgerservicenummer from the response when the client did not ask for it', async () => {
+    it('logs the persons found by a search on other data without changing the request or response', async () => {
       const requestBody = {
         type: 'ZoekMetPostcodeEnHuisnummer',
         postcode: '6511PP',
         huisnummer: 1,
-        fields: ['naam.volledigeNaam'],
+        fields: ['burgerservicenummer', 'naam.volledigeNaam'],
       };
       setupApplicationProfile(requestBody.fields);
       setupHaalCentraalResponse();
 
       const result = await handler(createValidEvent({ body: requestBody }));
 
-      expect(getForwardedRequestBody().fields).toEqual(['naam.volledigeNaam', 'burgerservicenummer']);
+      expect(getForwardedRequestBody()).toEqual(requestBody);
       expect(JSON.parse(result.body)).toEqual({
-        personen: [{ naam: { volledigeNaam: "Sem van 't Hul" } }],
+        personen: [{ burgerservicenummer: '999971785', naam: { volledigeNaam: "Sem van 't Hul" } }],
       });
-      expect(writtenItems()).toHaveLength(1);
+      expect(writtenItems()).toEqual([expect.objectContaining({
+        bsnHash: { S: AuditLog.hashBsn('999971785', 'test-salt') },
+        bron: { S: 'antwoord' },
+      })]);
     });
 
-    it('writes a geen-resultaat record when the person is not found', async () => {
+    it('logs the requested BSN when the response has no BSN', async () => {
+      setupApplicationProfile(['naam.volledigeNaam']);
+      setupHaalCentraalResponse({ responseData: { personen: [{ naam: { volledigeNaam: "Sem van 't Hul" } }] } });
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(200);
+      expect(writtenItems()).toEqual([expect.objectContaining({
+        bsnHash: { S: AuditLog.hashBsn('999971785', 'test-salt') },
+        bron: { S: 'verzoek' },
+      })]);
+    });
+
+    it('writes no record when the person is not found', async () => {
       setupApplicationProfile(['naam.volledigeNaam']);
       setupHaalCentraalResponse({ responseData: { personen: [] } });
 
       const result = await handler(createValidEvent());
 
       expect(result.statusCode).toBe(404);
-      expect(writtenItems()[0]?.resultaat).toEqual({ S: 'geen-resultaat' });
+      expect(writtenItems()).toHaveLength(0);
     });
 
-    it('writes a fout record when Haal Centraal returns an error', async () => {
+    it('writes no record when Haal Centraal returns an error', async () => {
       setupApplicationProfile(['naam.volledigeNaam']);
       setupHaalCentraalResponse({ statusCode: 503, responseData: { error: 'upstream unavailable' } });
 
       const result = await handler(createValidEvent());
 
       expect(result.statusCode).toBe(503);
-      expect(writtenItems()[0]?.resultaat).toEqual({ S: 'fout' });
+      expect(writtenItems()).toHaveLength(0);
     });
 
     it('returns 500 without person data when the record cannot be written', async () => {
