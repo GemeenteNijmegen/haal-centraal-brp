@@ -1,3 +1,4 @@
+
 const { GemeenteNijmegenCdkApp } = require('@gemeentenijmegen/projen-project-type');
 const project = new GemeenteNijmegenCdkApp({
   cdkVersion: '2.1.0',
@@ -34,6 +35,10 @@ const project = new GemeenteNijmegenCdkApp({
       setupFiles: ['dotenv/config'],
     },
   },
+  projenrcTs: true,
+  gitignore: [
+    'test/local/cdk.out',
+    'test/local/.certs',
+  ]
 });
-project.gitignore.exclude('test/local/cdk.out', 'test/local/.certs');
 project.synth();
