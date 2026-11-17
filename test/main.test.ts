@@ -46,12 +46,12 @@ test('ParameterStack generates a retained BSN hash salt', () => {
   });
 });
 
-describe('ApiStack request log', () => {
+describe('ApiStack audit log', () => {
   const app = new App();
   const stack = new ApiStack(app, 'api', { env: mockEnv, configuration: config });
   const template = Template.fromStack(stack);
 
-  test('has a request log table keyed by hashed BSN and time', () => {
+  test('has an audit log table keyed by hashed BSN and time', () => {
     template.hasResource('AWS::DynamoDB::Table', {
       Properties: {
         KeySchema: [
@@ -72,27 +72,27 @@ describe('ApiStack request log', () => {
     'HAAL CENTRAAL Persoonen endpoint function',
     'src/personen/subset/subset.lambda.ts',
     'src/personen/partner-filter/partner-filter.lambda.ts',
-  ])('request lambda %s gets the request log configuration', (description) => {
+  ])('request lambda %s gets the audit log configuration', (description) => {
     template.hasResourceProperties('AWS::Lambda::Function', {
       Description: description,
       Environment: {
         Variables: Match.objectLike({
-          REQUEST_LOG_TABLE_NAME: Match.anyValue(),
+          AUDIT_LOG_TABLE_NAME: Match.anyValue(),
           BSN_HASH_SALT_ARN: Match.anyValue(),
-          REQUIRE_REQUEST_LOG_HEADERS: 'false',
+          ENFORCE_AUDIT_LOG_HEADERS: 'false',
         }),
       },
     });
   });
 
-  test('request lambdas can write to the request log table', () => {
+  test('request lambdas can write to the audit log table', () => {
     const policies = template.findResources('AWS::IAM::Policy', {
       Properties: {
         PolicyDocument: {
           Statement: Match.arrayWith([
             Match.objectLike({
               Action: 'dynamodb:BatchWriteItem',
-              Resource: Match.arrayWith([{ 'Fn::GetAtt': [Match.stringLikeRegexp('requestlog'), 'Arn'] }]),
+              Resource: Match.arrayWith([{ 'Fn::GetAtt': [Match.stringLikeRegexp('auditlog'), 'Arn'] }]),
             }),
           ]),
         },
@@ -101,10 +101,10 @@ describe('ApiStack request log', () => {
     expect(Object.keys(policies)).toHaveLength(3);
   });
 
-  test('request lambdas cannot update or delete single request log records', () => {
+  test('request lambdas cannot update or delete single audit log records', () => {
     const statements = Object.values(template.findResources('AWS::IAM::Policy'))
       .flatMap((policy: any) => policy.Properties.PolicyDocument.Statement)
-      .filter((statement: any) => JSON.stringify(statement.Resource).includes('requestlog'));
+      .filter((statement: any) => JSON.stringify(statement.Resource).includes('auditlog'));
     const actions = statements.flatMap((statement: any) => [statement.Action].flat());
     expect(actions).toContain('dynamodb:BatchWriteItem');
     expect(actions).not.toContain('dynamodb:DeleteItem');

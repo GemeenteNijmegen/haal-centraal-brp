@@ -2,8 +2,8 @@ import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwat
 import { BatchWriteItemCommand, DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
+import { AuditLog } from '../../auditLog';
 import { callHaalCentraal } from '../../callHaalCentraal';
-import { hashBsn } from '../../requestLog';
 import { SubsetHandlerFactory } from '../handlers/subset-handler-factory';
 
 const fakedInitSecrets = {
@@ -61,8 +61,8 @@ describe('subset lambda handler', () => {
 
     process.env.AWS_REGION = 'eu-central-1';
     process.env.ID_TABLE_NAME = 'TestTable';
-    process.env.REQUEST_LOG_TABLE_NAME = 'RequestLogTable';
-    delete process.env.REQUIRE_REQUEST_LOG_HEADERS;
+    process.env.AUDIT_LOG_TABLE_NAME = 'AuditLogTable';
+    delete process.env.ENFORCE_AUDIT_LOG_HEADERS;
   });
 
   // Validatefields dynamodb helper
@@ -643,9 +643,9 @@ describe('subset lambda handler', () => {
   });
 
 
-  describe('request log', () => {
+  describe('audit log', () => {
     const writtenItems = () => ddbMock.commandCalls(BatchWriteItemCommand)
-      .flatMap(call => call.args[0].input.RequestItems?.RequestLogTable ?? [])
+      .flatMap(call => call.args[0].input.RequestItems?.AuditLogTable ?? [])
       .map(request => request.PutRequest?.Item);
 
     it('writes a record for the requested person', async () => {
@@ -656,7 +656,7 @@ describe('subset lambda handler', () => {
 
       expect(result.statusCode).toBe(200);
       expect(writtenItems()).toEqual([{
-        bsnHash: { S: hashBsn('999971785', 'test-salt') },
+        bsnHash: { S: AuditLog.hashBsn('999971785', 'test-salt') },
         requestedAt: { S: '2026-11-16T10:00:00.000Z#request-1' },
         requestId: { S: 'request-1' },
         application: { S: 'ApiKeyTest' },
@@ -735,7 +735,7 @@ describe('subset lambda handler', () => {
     });
 
     it('returns 400 when headers are missing and enforced', async () => {
-      process.env.REQUIRE_REQUEST_LOG_HEADERS = 'true';
+      process.env.ENFORCE_AUDIT_LOG_HEADERS = 'true';
       setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
       setupHaalCentraalResponse();
 

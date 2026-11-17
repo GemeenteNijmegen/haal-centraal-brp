@@ -3,10 +3,10 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { Bsn } from '@gemeentenijmegen/utils';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import type { Subsegment } from 'aws-xray-sdk-core';
+import { AuditLog } from '../auditLog';
 import { callHaalCentraal } from '../callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from '../certBinding';
 import { initSecrets, PersonenSecrets } from '../initSecrets';
-import { collectTargets, getRequestLogContext, getRequestLogHeaders, parseResponseBody, RequestLogHeaders, requestLogHeadersRequired, writeRequestLog } from '../requestLog';
 import { getApplicationProfile, validateFields } from '../validateFields';
 import { createErrorResponse } from './errors/error-response';
 import { EndpointNotFoundError, HaalCentraalError, InvalidApplicationProfileError, InvalidBsnError, InvalidResourcePathError, MissingBsnError, NoPersonDataError } from './errors/subset-errors';
@@ -73,16 +73,15 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       throw new InvalidApplicationProfileError(fields);
     }
 
-    const requestLogHeaders = await getRequestLogHeaders(event.headers, {
-      enforce: requestLogHeadersRequired(),
+    const auditLog = await AuditLog.start(event, {
       application: profileName,
+      requestType: `subset:${endpoint}`,
+      fields,
+      salt: secrets.bsnHashSalt,
     });
 
     const result = await callHaalCentraal(requestJsonBody(fields, [bsn]), secrets);
-    const data = parseResponseBody(result.body);
-
-    // Logged before checking the response, so errors and empty results are logged too
-    await logRequest(event, profileName, endpoint, fields, requestLogHeaders, bsn, result.statusCode, data);
+    const data = await auditLog.write([bsn], result);
 
     const persoon = getPerson(result, data);
     const responseBody = subsetHandler.processResponse(persoon);
@@ -127,26 +126,6 @@ function getPerson(result: { statusCode: number; body: string }, data: any) {
     throw new NoPersonDataError();
   }
   return data.personen[0];
-}
-
-async function logRequest(
-  event: APIGatewayProxyEvent,
-  application: string,
-  endpoint: string,
-  fields: string[],
-  headers: RequestLogHeaders,
-  bsn: string,
-  statusCode: number,
-  data: any,
-) {
-  await writeRequestLog({
-    ...getRequestLogContext(event),
-    application,
-    requestType: `subset:${endpoint}`,
-    fields,
-    statusCode,
-    headers,
-  }, collectTargets([bsn], statusCode, data), secrets.bsnHashSalt);
 }
 
 function requestJsonBody(fields: string[], bsn: string[]): string {

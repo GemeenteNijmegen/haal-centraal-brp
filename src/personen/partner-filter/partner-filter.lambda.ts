@@ -2,20 +2,10 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import type { Subsegment } from 'aws-xray-sdk-core';
+import { AuditLog } from '../auditLog';
 import { callHaalCentraal } from '../callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from '../certBinding';
 import { PersonenSecrets, initSecrets } from '../initSecrets';
-import {
-  collectTargets,
-  getRequestedBsns,
-  getRequestLogContext,
-  getRequestLogHeaders,
-  parseResponseBody,
-  requestLogHeadersRequired,
-  stripBsnField,
-  withBsnField,
-  writeRequestLog,
-} from '../requestLog';
 import { createErrorResponse } from '../subset/errors/error-response';
 import {
   HaalCentraalError,
@@ -97,9 +87,11 @@ export async function handler(
       throw new InvalidApplicationProfileError(originalFields);
     }
 
-    const requestLogHeaders = await getRequestLogHeaders(event.headers, {
-      enforce: requestLogHeadersRequired(),
+    const auditLog = await AuditLog.start(event, {
       application: profileName,
+      requestType: request.type ?? 'unknown',
+      fields: originalFields,
+      salt: secrets.bsnHashSalt,
     });
 
     const hasPartnerFields = originalFields.some(
@@ -111,19 +103,9 @@ export async function handler(
       : originalFields;
 
     // burgerservicenummer is always requested so the returned persons can be logged
-    const body = JSON.stringify({ ...request, fields: withBsnField(fieldsForRequest) });
+    const body = JSON.stringify({ ...request, fields: auditLog.withBsnField(fieldsForRequest) });
     const result = await callHaalCentraal(body, secrets);
-    const data = parseResponseBody(result.body);
-
-    // Logged before checking the response, so errors and empty results are logged too
-    await writeRequestLog({
-      ...getRequestLogContext(event),
-      application: profileName,
-      requestType: request.type ?? 'unknown',
-      fields: originalFields,
-      statusCode: result.statusCode,
-      headers: requestLogHeaders,
-    }, collectTargets(getRequestedBsns(request), result.statusCode, data), secrets.bsnHashSalt);
+    const data = await auditLog.write(AuditLog.requestedBsns(request), result);
 
     if (result.statusCode < 200 || result.statusCode >= 300) {
       throw new HaalCentraalError(result.statusCode, result.body);
@@ -143,7 +125,7 @@ export async function handler(
 
     return {
       statusCode: result.statusCode,
-      body: JSON.stringify(stripBsnField(filteredData, originalFields)),
+      body: JSON.stringify(auditLog.withoutBsnField(filteredData)),
       headers: { 'Content-Type': 'application/json' },
     };
   } catch (error) {

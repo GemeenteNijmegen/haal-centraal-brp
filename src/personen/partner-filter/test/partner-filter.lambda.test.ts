@@ -2,8 +2,8 @@ import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwat
 import { BatchWriteItemCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
+import { AuditLog } from '../../auditLog';
 import { callHaalCentraal } from '../../callHaalCentraal';
-import { hashBsn } from '../../requestLog';
 import { getApplicationProfile, validateFields } from '../../validateFields';
 
 const fakedInitSecrets = {
@@ -78,8 +78,8 @@ describe('partner filter lambda handler', () => {
     ddbMock.on(BatchWriteItemCommand).resolves({});
 
     delete process.env.TRACING_ENABLED;
-    delete process.env.REQUIRE_REQUEST_LOG_HEADERS;
-    process.env.REQUEST_LOG_TABLE_NAME = 'RequestLogTable';
+    delete process.env.ENFORCE_AUDIT_LOG_HEADERS;
+    process.env.AUDIT_LOG_TABLE_NAME = 'AuditLogTable';
 
     mockGetApplicationProfile.mockResolvedValue({
       name: 'ApiKeyTest',
@@ -804,9 +804,9 @@ describe('partner filter lambda handler', () => {
     });
   });
 
-  describe('handler - request log', () => {
+  describe('handler - audit log', () => {
     const writtenItems = () => ddbMock.commandCalls(BatchWriteItemCommand)
-      .flatMap(call => call.args[0].input.RequestItems?.RequestLogTable ?? [])
+      .flatMap(call => call.args[0].input.RequestItems?.AuditLogTable ?? [])
       .map(request => request.PutRequest?.Item);
 
     it('writes a record with the client requested fields', async () => {
@@ -822,7 +822,7 @@ describe('partner filter lambda handler', () => {
 
       expect(result.statusCode).toBe(200);
       expect(writtenItems()).toEqual([expect.objectContaining({
-        bsnHash: { S: hashBsn('999971785', 'test-salt') },
+        bsnHash: { S: AuditLog.hashBsn('999971785', 'test-salt') },
         endpoint: { S: '/partnerfilter/personen' },
         requestType: { S: 'RaadpleegMetBurgerservicenummer' },
         fields: { L: [{ S: 'naam.volledigeNaam' }, { S: 'partners' }] },
@@ -883,7 +883,7 @@ describe('partner filter lambda handler', () => {
     });
 
     it('returns 400 when headers are missing and enforced', async () => {
-      process.env.REQUIRE_REQUEST_LOG_HEADERS = 'true';
+      process.env.ENFORCE_AUDIT_LOG_HEADERS = 'true';
       setupApplicationProfile(['naam.volledigeNaam']);
 
       const result = await handler(createValidEvent({ headers: { 'x-doelbinding': '' } }));

@@ -35,7 +35,7 @@ export class ParameterStack extends Stack {
 
     const bsnHashSalt = new SecretsManager.Secret(this, 'bsn-hash-salt', {
       secretName: Statics.bsnHashSalt,
-      description: 'Salt for hashing BSNs in the request log, never rotate',
+      description: 'Salt for hashing BSNs in the audit log, never rotate',
       generateSecretString: {
         passwordLength: 64,
         excludePunctuation: true,

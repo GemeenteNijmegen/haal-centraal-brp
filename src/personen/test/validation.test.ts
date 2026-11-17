@@ -20,7 +20,7 @@ jest.spyOn(haal, 'callHaalCentraal').mockResolvedValue({
 });
 
 const ddbMock = mockClient(DynamoDBClient);
-const REQUEST_LOG_HEADERS = { 'x-gebruiker': 'medewerker-1', 'x-doelbinding': 'BRPACT-Totaal' };
+const AUDIT_LOG_HEADERS = { 'x-gebruiker': 'medewerker-1', 'x-doelbinding': 'BRPACT-Totaal' };
 const cloudWatchMock = mockClient(CloudWatchClient);
 
 // A static, parseable self-signed client certificate used as a fixture for binding tests.
@@ -116,7 +116,7 @@ describe('handlersubset', () => {
     const event = {
       requestContext: { identity: { apiKey: 'test-api-key' } },
       resource: '/personen/burgerservicenummer/leeftijd',
-      headers: { 'x-bsn': '999971785', ...REQUEST_LOG_HEADERS },
+      headers: { 'x-bsn': '999971785', ...AUDIT_LOG_HEADERS },
     } as any as APIGatewayProxyEvent;
 
     const result = await handlerSubset(event);
@@ -131,7 +131,7 @@ describe('handlersubset', () => {
     const event = {
       requestContext: { identity: { apiKey: 'test-api-key' } },
       resource: '/personen/burgerservicenummer/leeftijd',
-      headers: { 'x-bsn': '999971785', ...REQUEST_LOG_HEADERS },
+      headers: { 'x-bsn': '999971785', ...AUDIT_LOG_HEADERS },
     } as any as APIGatewayProxyEvent;
 
     const result = await handlerSubset(event);
@@ -159,7 +159,7 @@ describe('log-only certificate binding (handler wiring)', () => {
 
     const event = {
       body: JSON.stringify({ fields: ['field1'] }),
-      headers: REQUEST_LOG_HEADERS,
+      headers: AUDIT_LOG_HEADERS,
       requestContext: { identity: { apiKey: 'test-api-key', apiKeyId: 'id', clientCert: { clientCertPem: CLIENT_CERT_PEM } } },
     } as any as APIGatewayProxyEvent;
 
@@ -174,7 +174,7 @@ describe('log-only certificate binding (handler wiring)', () => {
 
     const event = {
       body: JSON.stringify({ fields: ['field1'] }),
-      headers: REQUEST_LOG_HEADERS,
+      headers: AUDIT_LOG_HEADERS,
       requestContext: { identity: { apiKey: 'test-api-key', apiKeyId: 'id', clientCert: { clientCertPem: CLIENT_CERT_PEM } } },
     } as any as APIGatewayProxyEvent;
 
@@ -192,7 +192,7 @@ describe('log-only certificate binding (handler wiring)', () => {
 
     const event = {
       body: JSON.stringify({ fields: ['field1'] }),
-      headers: REQUEST_LOG_HEADERS,
+      headers: AUDIT_LOG_HEADERS,
       requestContext: { identity: { apiKey: 'test-api-key', apiKeyId: 'id' } },
     } as any as APIGatewayProxyEvent;
 
@@ -209,7 +209,7 @@ describe('log-only certificate binding (handler wiring)', () => {
     const event = {
       requestContext: { identity: { apiKey: 'test-api-key', apiKeyId: 'id', clientCert: { clientCertPem: CLIENT_CERT_PEM } } },
       resource: '/personen/burgerservicenummer/leeftijd',
-      headers: { 'x-bsn': '999971785', ...REQUEST_LOG_HEADERS },
+      headers: { 'x-bsn': '999971785', ...AUDIT_LOG_HEADERS },
     } as any as APIGatewayProxyEvent;
 
     const result = await handlerSubset(event);

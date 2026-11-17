@@ -51,7 +51,7 @@ export class HaalCentraalError extends SubsetError {
   }
 }
 
-export class MissingRequestLogHeadersError extends SubsetError {
+export class MissingAuditLogHeadersError extends SubsetError {
   constructor(missing: { attribute: string; headers: string[] }[]) {
     const readable = missing.map(m => `${m.attribute} (one of: ${m.headers.join(', ')})`).join(', ');
     super(`Missing required header for ${readable}`, 400);

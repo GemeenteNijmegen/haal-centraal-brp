@@ -1,20 +1,10 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Subsegment } from 'aws-xray-sdk-core';
+import { AuditLog } from './auditLog';
 import { callHaalCentraal } from './callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from './certBinding';
 import { initSecrets, PersonenSecrets } from './initSecrets';
-import {
-  collectTargets,
-  getRequestedBsns,
-  getRequestLogContext,
-  getRequestLogHeaders,
-  parseResponseBody,
-  requestLogHeadersRequired,
-  stripBsnField,
-  withBsnField,
-  writeRequestLog,
-} from './requestLog';
 import { createErrorResponse } from './subset/errors/error-response';
 import { SubsetError } from './subset/errors/subset-errors';
 import { getApplicationProfile, validateFields } from './validateFields';
@@ -72,29 +62,22 @@ export async function handler(event: any): Promise<any> {
     const validProfile = validateFields(request.fields, profile.fields);
 
     if (validProfile) {
-      const requestLogHeaders = await getRequestLogHeaders(event.headers, {
-        enforce: requestLogHeadersRequired(),
-        application: profile.name,
-      });
-
-      // burgerservicenummer is always requested so the returned persons can be logged
-      const body = JSON.stringify({ ...request, fields: withBsnField(request.fields) });
-      const result = await callHaalCentraal(body, secrets);
-      const data = parseResponseBody(result.body);
-
-      await writeRequestLog({
-        ...getRequestLogContext(event),
+      const auditLog = await AuditLog.start(event, {
         application: profile.name,
         requestType: request.type ?? 'unknown',
         fields: request.fields,
-        statusCode: result.statusCode,
-        headers: requestLogHeaders,
-      }, collectTargets(getRequestedBsns(request), result.statusCode, data), secrets.bsnHashSalt);
+        salt: secrets.bsnHashSalt,
+      });
+
+      // burgerservicenummer is always requested so the returned persons can be logged
+      const body = JSON.stringify({ ...request, fields: auditLog.withBsnField(request.fields) });
+      const result = await callHaalCentraal(body, secrets);
+      const data = await auditLog.write(AuditLog.requestedBsns(request), result);
 
       if (data === undefined) {
         return result;
       }
-      return { ...result, body: JSON.stringify(stripBsnField(data, request.fields)) };
+      return { ...result, body: JSON.stringify(auditLog.withoutBsnField(data)) };
     } else {
       return {
         statusCode: '403', //Forbidden

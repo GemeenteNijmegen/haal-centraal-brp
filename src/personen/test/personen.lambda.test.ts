@@ -1,6 +1,7 @@
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { BatchWriteItemCommand, DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
+import { AuditLog } from '../auditLog';
 import { callHaalCentraal } from '../callHaalCentraal';
 
 jest.mock('../initSecrets', () => ({
@@ -10,7 +11,6 @@ jest.mock('../callHaalCentraal');
 jest.mock('node-fetch', () => jest.fn());
 
 import { handler } from '../personen.lambda';
-import { hashBsn } from '../requestLog';
 
 const ddbMock = mockClient(DynamoDBClient);
 const cloudWatchMock = mockClient(CloudWatchClient);
@@ -18,7 +18,7 @@ const mockCallHaalCentraal = callHaalCentraal as jest.MockedFunction<typeof call
 
 const SALT = 'test-salt';
 
-describe('personen lambda handler request log', () => {
+describe('personen lambda handler audit log', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     ddbMock.reset();
@@ -32,8 +32,8 @@ describe('personen lambda handler request log', () => {
     });
     ddbMock.on(BatchWriteItemCommand).resolves({});
     process.env.ID_TABLE_NAME = 'TestTable';
-    process.env.REQUEST_LOG_TABLE_NAME = 'RequestLogTable';
-    delete process.env.REQUIRE_REQUEST_LOG_HEADERS;
+    process.env.AUDIT_LOG_TABLE_NAME = 'AuditLogTable';
+    delete process.env.ENFORCE_AUDIT_LOG_HEADERS;
   });
 
   const createEvent = (request: any, headers: Record<string, string> = {}) => ({
@@ -56,7 +56,7 @@ describe('personen lambda handler request log', () => {
   };
 
   const writtenItems = () => ddbMock.commandCalls(BatchWriteItemCommand)
-    .flatMap(call => call.args[0].input.RequestItems?.RequestLogTable ?? [])
+    .flatMap(call => call.args[0].input.RequestItems?.AuditLogTable ?? [])
     .map(request => request.PutRequest?.Item);
 
   it('writes gevonden and geen-resultaat records for a lookup by BSN', async () => {
@@ -75,7 +75,7 @@ describe('personen lambda handler request log', () => {
     const items = writtenItems();
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({
-      bsnHash: { S: hashBsn('999971785', SALT) },
+      bsnHash: { S: AuditLog.hashBsn('999971785', SALT) },
       requestedAt: { S: '2026-11-16T10:00:00.000Z#request-1' },
       application: { S: 'ApiKeyTest' },
       endpoint: { S: '/personen' },
@@ -86,7 +86,7 @@ describe('personen lambda handler request log', () => {
       doelbinding: { S: 'BRPACT-Totaal' },
     });
     expect(items[1]).toMatchObject({
-      bsnHash: { S: hashBsn('999999333', SALT) },
+      bsnHash: { S: AuditLog.hashBsn('999999333', SALT) },
       resultaat: { S: 'geen-resultaat' },
     });
   });
@@ -119,8 +119,8 @@ describe('personen lambda handler request log', () => {
       personen: [{ naam: { voornamen: 'A' } }, { naam: { voornamen: 'B' } }],
     });
     expect(writtenItems().map(item => item?.bsnHash.S)).toEqual([
-      hashBsn('999971785', SALT),
-      hashBsn('999999333', SALT),
+      AuditLog.hashBsn('999971785', SALT),
+      AuditLog.hashBsn('999999333', SALT),
     ]);
     expect(writtenItems()[0]?.fields).toEqual({ L: [{ S: 'naam' }] });
   });
@@ -193,7 +193,7 @@ describe('personen lambda handler request log', () => {
   });
 
   it('returns 400 when headers are missing and enforced', async () => {
-    process.env.REQUIRE_REQUEST_LOG_HEADERS = 'true';
+    process.env.ENFORCE_AUDIT_LOG_HEADERS = 'true';
 
     const result = await handler(createEvent({
       type: 'RaadpleegMetBurgerservicenummer',

@@ -44,7 +44,7 @@ export class ApiStack extends Stack {
     });
 
     const idTable = this.appIdStorage();
-    const requestLogTable = this.requestLogStorage();
+    const auditLogTable = this.auditLogStorage();
     const cert = this.cert();
     const truststore = this.trustStore();
     const environmentVariables = this.environmentVariables();
@@ -56,7 +56,7 @@ export class ApiStack extends Stack {
     const subsetPersonenFunction = this.subsetPersonenFunction(idTable, environmentVariables, props.configuration.devMode);
     const partnerFilterPersonenFunction = this.partnerFilterPersonenFunction(idTable, environmentVariables, props.configuration.devMode);
     for (const requestFunction of [personenFunction, subsetPersonenFunction, partnerFilterPersonenFunction]) {
-      this.addRequestLog(requestFunction, requestLogTable, environmentVariables.bsnHashSalt);
+      this.addAuditLog(requestFunction, auditLogTable, environmentVariables.bsnHashSalt);
     }
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
@@ -403,13 +403,13 @@ export class ApiStack extends Stack {
   }
 
   /**
-   * Log of every request for person data, kept for accountability (AVG).
+   * Audit log of every request for person data, kept for accountability (AVG).
    * One record per person per request, keyed by the hashed BSN and sorted by time.
    * Records are kept indefinitely.
-   * @returns Request log table
+   * @returns Audit log table
    */
-  private requestLogStorage() {
-    return new Table(this, 'request-log', {
+  private auditLogStorage() {
+    return new Table(this, 'audit-log', {
       partitionKey: { name: 'bsnHash', type: AttributeType.STRING },
       sortKey: { name: 'requestedAt', type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST,
@@ -420,16 +420,16 @@ export class ApiStack extends Stack {
   }
 
   /**
-   * Give a request lambda what it needs to write the request log.
+   * Give a request lambda what it needs to write the audit log.
    * @param requestFunction Lambda handling person requests
-   * @param requestLogTable Request log table
+   * @param auditLogTable Audit log table
    * @param bsnHashSalt Secret containing the BSN hash salt
    */
-  private addRequestLog(requestFunction: Function, requestLogTable: Table, bsnHashSalt: ISecret) {
-    requestFunction.addEnvironment('REQUEST_LOG_TABLE_NAME', requestLogTable.tableName);
+  private addAuditLog(requestFunction: Function, auditLogTable: Table, bsnHashSalt: ISecret) {
+    requestFunction.addEnvironment('AUDIT_LOG_TABLE_NAME', auditLogTable.tableName);
     requestFunction.addEnvironment('BSN_HASH_SALT_ARN', bsnHashSalt.secretArn);
-    requestFunction.addEnvironment('REQUIRE_REQUEST_LOG_HEADERS', this.configuration.requireRequestLogHeaders ? 'true' : 'false');
-    requestLogTable.grant(requestFunction, 'dynamodb:BatchWriteItem');
+    requestFunction.addEnvironment('ENFORCE_AUDIT_LOG_HEADERS', this.configuration.enforceAuditLogHeaders ? 'true' : 'false');
+    auditLogTable.grant(requestFunction, 'dynamodb:BatchWriteItem');
     bsnHashSalt.grantRead(requestFunction);
   }
 
