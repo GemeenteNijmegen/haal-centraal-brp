@@ -10,7 +10,7 @@ We ondersteunen momenteel het personen endpoint volgens de haal centraal specifi
 - Endpoint voor de bevraging is: `https://api.haal-centraal-brp-accp.csp-nijmegen.nl/personen`
 
 ## Headers voor het verwerkingenlog
-Elke bevraging wordt vastgelegd in het [verwerkingenlog](./Verwerkingenlog.md). Daarvoor stuurt de applicatie bij elk verzoek mee wie de gegevens opvraagt en met welk doel.
+Elke bevraging wordt vastgelegd in het [verwerkingenlog](./Verwerkingenlog.md). Daarvoor stuurt de applicatie bij elk verzoek mee wie de gegevens opvraagt en met welk doel. Vraag bij een zoekvraag op andere gegevens dan BSN (bijvoorbeeld postcode en huisnummer) ook het veld `burgerservicenummer` op, anders kan de bevraging niet aan een persoon gekoppeld worden.
 
 Per waarde worden meerdere headernamen geaccepteerd. Hoofdletters maken niet uit. Zijn er meerdere aanwezig, dan geldt de eerste uit de lijst.
 

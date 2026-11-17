@@ -5,7 +5,12 @@ Elke bevraging van persoonsgegevens via deze koppeling wordt vastgelegd in een D
 Dit geldt voor alle persoon-endpoints: `/personen`, `/brp/personen`, `/partnerfilter/personen` en `/personen/burgerservicenummer/*`.
 
 ## Wat wordt vastgelegd
-Per bevraging wordt één record per betrokken persoon geschreven. Betrokken zijn alle BSN's waarnaar gezocht is (in de body of de `x-bsn` header) en alle personen die in het antwoord terugkomen. Bij een zoekvraag op bijvoorbeeld postcode en huisnummer zijn dat dus de gevonden personen.
+Per bevraging wordt één record per betrokken persoon geschreven. Welke personen dat zijn:
+1. Staan er BSN's in het antwoord van Haal Centraal, dan de personen in het antwoord (`bron` is `antwoord`).
+2. Anders de BSN's waarnaar gevraagd is, in de body (`RaadpleegMetBurgerservicenummer`) of de `x-bsn` header (`bron` is `verzoek`).
+3. Anders wordt er niets vastgelegd en alleen een waarschuwing gelogd.
+
+Het antwoord bevat alleen BSN's als de applicatie het veld `burgerservicenummer` opvraagt. Bij een zoekvraag op bijvoorbeeld postcode en huisnummer zonder dat veld wordt de bevraging dus niet vastgelegd.
 
 | Attribuut | Inhoud |
 |---|---|
@@ -22,21 +27,23 @@ Per bevraging wordt één record per betrokken persoon geschreven. Betrokken zij
 | `fields` | De velden die de applicatie heeft gevraagd |
 | `endpoint` | Het aangeroepen endpoint |
 | `requestType` | Type bevraging, bijvoorbeeld `RaadpleegMetBurgerservicenummer` of `subset:leeftijd` |
-| `resultaat` | `gevonden`, `geen-resultaat` (gezocht BSN niet gevonden) of `fout` (Haal Centraal gaf een fout) |
-| `statusCode` | Statuscode van het antwoord van Haal Centraal |
+| `bron` | `antwoord` (BSN uit het antwoord van Haal Centraal) of `verzoek` (BSN waarnaar gevraagd is) |
 
 Er wordt nooit een BSN of API key opgeslagen.
 
 Niet vastgelegd:
 - Verzoeken die geweigerd worden voordat Haal Centraal bevraagd wordt (onbekende API key, velden die de applicatie niet mag opvragen). Er worden dan geen gegevens verstrekt.
-- Een zoekvraag zonder BSN (bijvoorbeeld op postcode) die niemand vindt: er is dan geen persoon om aan te koppelen.
+- Verzoeken waarop Haal Centraal een fout geeft. Er worden dan geen persoonsgegevens verstrekt.
+- Op `/partnerfilter/personen` en `/personen/burgerservicenummer/*`: verzoeken waarop geen persoon gevonden wordt (`404`). Op `/personen` en `/brp/personen` wordt een vraag naar BSN's zonder resultaat wel vastgelegd, met `bron` `verzoek`.
+- Een zoekvraag zonder BSN (bijvoorbeeld op postcode) zonder `burgerservicenummer` in de opgevraagde velden: er is dan geen BSN om aan te koppelen.
+- Bij een vraag naar meerdere BSN's met `burgerservicenummer` in de velden: de BSN's die niet in het antwoord staan.
 
 Welke headers meegestuurd moeten worden staat in [Bevragen API](./BevragenApi.md#headers-voor-het-verwerkingenlog).
 
 ## Altijd eerst loggen
 Het record wordt geschreven voordat het antwoord naar de applicatie gaat. Lukt het schrijven niet, dan krijgt de applicatie een 500 en geen persoonsgegevens.
 
-Om de gevonden personen te kunnen loggen vraagt de koppeling altijd `burgerservicenummer` op bij Haal Centraal. Heeft de applicatie dat veld niet gevraagd, dan wordt het uit het antwoord gehaald.
+Het verzoek naar Haal Centraal en het antwoord naar de applicatie worden voor het verwerkingenlog niet aangepast.
 
 ## Bewaartermijn
 Records worden niet automatisch verwijderd. De tabel heeft point-in-time recovery en deletion protection en blijft bestaan als de stack verwijderd wordt.
