@@ -93,7 +93,7 @@ export class AuditLog {
    * When gebruiker or doelbinding is missing the value is logged as 'onbekend' and a metric is
    * emitted, or, when ENFORCE_AUDIT_LOG_HEADERS is 'true', the request is rejected.
    * @param event API Gateway proxy event
-   * @param options Application, request type, requested fields and BSN hash salt
+   * @param options Application, request type, requested fields, BSN hash salt and requested BSNs
    * @returns Audit log for this request
    * @throws MissingAuditLogHeadersError when enforced and a required header is missing
    */
@@ -136,17 +136,21 @@ export class AuditLog {
   ) {}
 
   /**
-   * Write the audit log records, one per person. The persons are the BSNs in the response
-   * or, when the response has none, the BSNs in the request. When there are neither, nothing
-   * is written and a warning is logged.
+   * Write the audit log records, one per person. Nothing is written when the response has no
+   * persons. Otherwise the persons are the BSNs in the response or, when the response has none,
+   * the BSNs in the request. When there are neither, nothing is written and a warning is logged.
    * Throws when not every record could be written, so the caller can refuse to return data.
    * @param responseBody Parsed Haal Centraal response body
    */
   async write(responseBody: any): Promise<void> {
-    const responseBsns = bsnsInResponse(responseBody);
-    const requestBsns = unique(this.options.requestBsns);
+    const personen: any[] = Array.isArray(responseBody?.personen) ? responseBody.personen : [];
+    if (personen.length === 0) {
+      return;
+    }
+
+    const responseBsns = validBsns(personen.map(persoon => persoon?.[BSN_FIELD]));
     const bron: Bron = responseBsns.length > 0 ? 'antwoord' : 'verzoek';
-    const bsns = bron === 'antwoord' ? responseBsns : requestBsns;
+    const bsns = bron === 'antwoord' ? responseBsns : validBsns(this.options.requestBsns);
     if (bsns.length === 0) {
       logger.warn('No BSNs to log for request', { application: this.options.application, requestType: this.options.requestType });
       return;
@@ -295,15 +299,17 @@ async function emitMissingHeadersMetric(application: string): Promise<void> {
   }
 }
 
-function bsnsInResponse(responseBody: any): string[] {
-  const personen: any[] = Array.isArray(responseBody?.personen) ? responseBody.personen : [];
-  return unique(personen.map(persoon => persoon?.[BSN_FIELD]).filter(bsn => typeof bsn === 'string'));
+/**
+ * Distinct 9 digit BSNs, ignoring surrounding whitespace and any other value.
+ */
+function validBsns(values: unknown[]): string[] {
+  const bsns = values
+    .filter((value): value is string => typeof value === 'string')
+    .map(bsn => bsn.trim())
+    .filter(bsn => /^\d{9}$/.test(bsn));
+  return [...new Set(bsns)];
 }
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function unique(bsns: string[]): string[] {
-  return [...new Set(bsns.map(bsn => bsn.trim()).filter(bsn => bsn.length > 0))];
 }

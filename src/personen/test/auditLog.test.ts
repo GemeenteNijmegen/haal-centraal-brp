@@ -12,6 +12,9 @@ const SALT = 'test-salt';
 // HMAC-SHA256('test-salt', '999971785'), also reproducible with: printf '999971785' | openssl dgst -sha256 -hmac 'test-salt'
 const HASH_999971785 = '3c909c6a01bc997a512c67730b15e961bcb8c64c8c72b8cae41af9bd7c16ecfa';
 
+// A returned person without burgerservicenummer, so the requested BSNs are logged
+const PERSON_WITHOUT_BSN = { personen: [{ naam: {} }] };
+
 const HEADERS = { 'x-gebruiker': 'medewerker-1', 'x-doelbinding': 'BRPACT-Totaal' };
 
 function event(headers: Record<string, string | undefined> | null = HEADERS) {
@@ -96,7 +99,7 @@ describe('AuditLog.requestedBsns', () => {
 
 describe('AuditLog.start', () => {
   it('reads the primary headers', async () => {
-    await (await start()).write({ personen: [] });
+    await (await start()).write(PERSON_WITHOUT_BSN);
     expect(writtenItems()[0]).toMatchObject({
       gebruiker: { S: 'medewerker-1' },
       gebruikerHeader: { S: 'x-gebruiker' },
@@ -111,7 +114,7 @@ describe('AuditLog.start', () => {
     ['X-Medewerker', 'X-Doel'],
   ])('accepts the alias headers %s and %s, case-insensitive', async (userHeader, doelbindingHeader) => {
     const auditLog = await start({ [userHeader]: 'medewerker-1', [doelbindingHeader]: 'BRPACT-Totaal' });
-    await auditLog.write({ personen: [] });
+    await auditLog.write(PERSON_WITHOUT_BSN);
     expect(writtenItems()[0]).toMatchObject({
       gebruiker: { S: 'medewerker-1' },
       gebruikerHeader: { S: userHeader.toLowerCase() },
@@ -126,13 +129,13 @@ describe('AuditLog.start', () => {
       'x-gebruiker': 'from-gebruiker',
       'x-doelbinding': 'BRPACT-Totaal',
     });
-    await auditLog.write({ personen: [] });
+    await auditLog.write(PERSON_WITHOUT_BSN);
     expect(writtenItems()[0]).toMatchObject({ gebruiker: { S: 'from-gebruiker' }, gebruikerHeader: { S: 'x-gebruiker' } });
   });
 
   it('skips headers with an empty value', async () => {
     const auditLog = await start({ 'x-gebruiker': '  ', 'x-user': 'medewerker-1', 'x-doelbinding': 'BRPACT-Totaal' });
-    await auditLog.write({ personen: [] });
+    await auditLog.write(PERSON_WITHOUT_BSN);
     expect(writtenItems()[0]).toMatchObject({ gebruiker: { S: 'medewerker-1' }, gebruikerHeader: { S: 'x-user' } });
   });
 
@@ -143,7 +146,7 @@ describe('AuditLog.start', () => {
       'x-afnemer-oin': '00000001234567890000',
       'Fsc-Transaction-Id': '018f6b1c-0000-7000-8000-000000000000',
     });
-    await auditLog.write({ personen: [] });
+    await auditLog.write(PERSON_WITHOUT_BSN);
     expect(writtenItems()[0]).toMatchObject({
       verwerking: { S: 'Burgerzaken' },
       afnemerOin: { S: '00000001234567890000' },
@@ -153,7 +156,7 @@ describe('AuditLog.start', () => {
 
   it('logs onbekend and emits a metric when headers are missing and not enforced', async () => {
     const auditLog = await start({ 'x-gebruiker': 'medewerker-1' });
-    await auditLog.write({ personen: [] });
+    await auditLog.write(PERSON_WITHOUT_BSN);
     const item = writtenItems()[0];
     expect(item.gebruiker).toEqual({ S: 'medewerker-1' });
     expect(item.doelbinding).toEqual({ S: 'onbekend' });
@@ -169,7 +172,7 @@ describe('AuditLog.start', () => {
 
   it('handles a missing headers object', async () => {
     const auditLog = await start(null);
-    await auditLog.write({ personen: [] });
+    await auditLog.write(PERSON_WITHOUT_BSN);
     expect(writtenItems()[0]).toMatchObject({ gebruiker: { S: 'onbekend' }, doelbinding: { S: 'onbekend' } });
   });
 
@@ -242,9 +245,20 @@ describe('write', () => {
     ]);
   });
 
-  it('logs the requested BSNs when there is no response body', async () => {
-    await (await start()).write(undefined);
+  it('ignores response values that are not a 9 digit BSN', async () => {
+    await (await start()).write({ personen: [{ burgerservicenummer: '12345' }, { burgerservicenummer: 999999333 }] });
     expect(bronnen()).toEqual([{ bsnHash: HASH_999971785, bron: 'verzoek' }]);
+  });
+
+  it.each([
+    ['no persons', { personen: [] }],
+    ['no body', undefined],
+  ])('writes nothing and does not warn when %s are returned', async (_, body) => {
+    const warn = jest.spyOn(Logger.prototype, 'warn');
+    await (await start()).write(body);
+    expect(ddbMock.commandCalls(BatchWriteItemCommand)).toHaveLength(0);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('deduplicates BSNs', async () => {
@@ -270,14 +284,14 @@ describe('write', () => {
     const unprocessed = { AuditLogTable: [{ PutRequest: { Item: { bsnHash: { S: 'x' } } } }] };
 
     it('splits more than 25 persons into several batches', async () => {
-      await (await start(HEADERS, bsns(30))).write({ personen: [] });
+      await (await start(HEADERS, bsns(30))).write(PERSON_WITHOUT_BSN);
       const calls = ddbMock.commandCalls(BatchWriteItemCommand);
       expect(calls.map(call => call.args[0].input.RequestItems?.AuditLogTable?.length)).toEqual([25, 5]);
     });
 
     it('retries unprocessed items', async () => {
       ddbMock.on(BatchWriteItemCommand).resolvesOnce({ UnprocessedItems: unprocessed }).resolves({});
-      await (await start(HEADERS, bsns(2))).write({ personen: [] });
+      await (await start(HEADERS, bsns(2))).write(PERSON_WITHOUT_BSN);
 
       const calls = ddbMock.commandCalls(BatchWriteItemCommand);
       expect(calls).toHaveLength(2);
@@ -286,13 +300,13 @@ describe('write', () => {
 
     it('throws when items stay unprocessed', async () => {
       ddbMock.on(BatchWriteItemCommand).resolves({ UnprocessedItems: unprocessed });
-      await expect((await start(HEADERS, bsns(1))).write({ personen: [] })).rejects.toThrow('Could not write audit log');
+      await expect((await start(HEADERS, bsns(1))).write(PERSON_WITHOUT_BSN)).rejects.toThrow('Could not write audit log');
       expect(ddbMock.commandCalls(BatchWriteItemCommand)).toHaveLength(4);
     });
 
     it('throws when DynamoDB fails', async () => {
       ddbMock.on(BatchWriteItemCommand).rejects(new Error('DynamoDB down'));
-      await expect((await start(HEADERS, bsns(1))).write({ personen: [] })).rejects.toThrow('DynamoDB down');
+      await expect((await start(HEADERS, bsns(1))).write(PERSON_WITHOUT_BSN)).rejects.toThrow('DynamoDB down');
     });
   });
 });

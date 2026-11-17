@@ -74,9 +74,10 @@ describe('personen lambda handler audit log', () => {
     respondWith(200, response);
     const request = { type: 'RaadpleegMetBurgerservicenummer', fields: ['naam'], burgerservicenummer: ['999971785'] };
 
-    const result = await handler(createEvent(request));
+    const event = createEvent(request);
+    const result = await handler(event);
 
-    expect(JSON.parse(mockCallHaalCentraal.mock.calls[0][0])).toEqual(request);
+    expect(mockCallHaalCentraal.mock.calls[0][0]).toBe(event.body);
     expect(result.statusCode).toBe(200);
     expect(JSON.parse(result.body)).toEqual(response);
   });
@@ -138,6 +139,19 @@ describe('personen lambda handler audit log', () => {
 
     expect(result.statusCode).toBe(200);
     expect(JSON.parse(result.body)).toEqual({ personen: [{ naam: { voornamen: 'A' } }] });
+    expect(writtenItems()).toHaveLength(0);
+  });
+
+  it('writes no record for a lookup by BSN that finds nobody', async () => {
+    respondWith(200, { personen: [] });
+
+    const result = await handler(createEvent({
+      type: 'RaadpleegMetBurgerservicenummer',
+      fields: ['naam'],
+      burgerservicenummer: ['999971785'],
+    }));
+
+    expect(result.statusCode).toBe(200);
     expect(writtenItems()).toHaveLength(0);
   });
 
