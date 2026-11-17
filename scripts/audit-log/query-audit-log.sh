@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 #
-# query-request-log.sh
+# query-audit-log.sh
 #
 # Zoekt in het verwerkingenlog (DynamoDB) alle bevragingen over één BSN, nieuwste eerst.
 # Het log bevat geen BSN's, alleen een HMAC-SHA256 van het BSN met een geheime salt per
 # omgeving. Dit script haalt die salt op uit Secrets Manager, berekent de hash op dezelfde
-# manier als de lambda (hashBsn in src/personen/requestLog.ts) en bevraagt de tabel.
+# manier als de lambda (AuditLog.hashBsn in src/personen/auditLog.ts) en bevraagt de tabel.
 #
 # Alleen-lezen: het script schrijft niets.
 #
 # Draai het met AWS-credentials voor de juiste omgeving (dev / accp / prod):
 #
-#   ./scripts/request-log/query-request-log.sh <bsn>
-#   ./scripts/request-log/query-request-log.sh <bsn> --hash-only   # alleen de hash tonen
+#   ./scripts/audit-log/query-audit-log.sh <bsn>
+#   ./scripts/audit-log/query-audit-log.sh <bsn> --hash-only   # alleen de hash tonen
 #
 # Optioneel:
-#   REQUEST_LOG_TABLE  tabelnaam, standaard de tabel met 'requestlog' in de naam
+#   AUDIT_LOG_TABLE    tabelnaam, standaard de tabel met 'auditlog' in de naam
 #   BSN_HASH_SALT      salt, standaard opgehaald uit Secrets Manager
 #
 # Vereist: aws cli, openssl
@@ -46,14 +46,14 @@ if [[ "$HASH_ONLY" == "--hash-only" ]]; then
   exit 0
 fi
 
-TABLE="${REQUEST_LOG_TABLE:-}"
+TABLE="${AUDIT_LOG_TABLE:-}"
 if [[ -z "$TABLE" ]]; then
   TABLE="$(aws dynamodb list-tables \
-    --query "TableNames[?contains(@, 'requestlog')] | [0]" \
+    --query "TableNames[?contains(@, 'auditlog')] | [0]" \
     --output text)"
 fi
 if [[ -z "$TABLE" || "$TABLE" == "None" ]]; then
-  echo "Geen request log tabel gevonden, zet REQUEST_LOG_TABLE" >&2
+  echo "Geen audit log tabel gevonden, zet AUDIT_LOG_TABLE" >&2
   exit 1
 fi
 

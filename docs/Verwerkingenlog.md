@@ -1,6 +1,6 @@
 # Verwerkingenlog
 
-Elke bevraging van persoonsgegevens via deze koppeling wordt vastgelegd in een DynamoDB-tabel (`haalcentraalbrp-api-stack-requestlog...`). Zo kan de gemeente (AVG) per persoon laten zien wie wanneer welke gegevens heeft opgevraagd en met welk doel.
+Elke bevraging van persoonsgegevens via deze koppeling wordt vastgelegd in een DynamoDB-tabel (`haalcentraalbrp-api-stack-auditlog...`). Zo kan de gemeente (AVG) per persoon laten zien wie wanneer welke gegevens heeft opgevraagd en met welk doel.
 
 Dit geldt voor alle persoon-endpoints: `/personen`, `/brp/personen`, `/partnerfilter/personen` en `/personen/burgerservicenummer/*`.
 
@@ -47,10 +47,10 @@ De salt staat in Secrets Manager (`/cdk/haal-centraal-brp/bsn-hash-salt`) en wor
 - Deel de salt niet: met de salt kan iemand voor elk BSN de hash uitrekenen.
 
 ## Zoeken op BSN
-Gebruik het script [`scripts/request-log/query-request-log.sh`](../scripts/request-log/query-request-log.sh) met AWS-credentials voor de juiste omgeving. Het script haalt de salt op, berekent de hash en toont alle records voor dat BSN, nieuwste eerst. Het script schrijft niets.
+Gebruik het script [`scripts/audit-log/query-audit-log.sh`](../scripts/audit-log/query-audit-log.sh) met AWS-credentials voor de juiste omgeving. Het script haalt de salt op, berekent de hash en toont alle records voor dat BSN, nieuwste eerst. Het script schrijft niets.
 
 ```bash
-./scripts/request-log/query-request-log.sh 999971785
+./scripts/audit-log/query-audit-log.sh 999971785
 ```
 
 Zelf zoeken kan ook: bereken de hash met `printf '%s' <bsn> | openssl dgst -sha256 -hmac <salt>` en query de tabel op `bsnHash` met `--no-scan-index-forward`.

@@ -52,6 +52,6 @@ Zodra een nieuw object (certificaat) naar de certificate storage wordt geupload 
 Hoe het verwerkingenlog werkt en hoe je zoekt op BSN staat in [Verwerkingenlog](./Verwerkingenlog.md).
 
 ### Headers verplicht maken
-Standaard worden verzoeken zonder gebruiker- of doelbindingheader nog verwerkt. Ze worden gelogd met `onbekend` en tellen mee in de CloudWatch metric `MissingRequestLogHeaders` (namespace `HaalCentraal`, dimensie `Application`). Zo is te zien welke applicaties de headers nog niet sturen.
+Standaard worden verzoeken zonder gebruiker- of doelbindingheader nog verwerkt. Ze worden gelogd met `onbekend` en tellen mee in de CloudWatch metric `MissingAuditLogHeaders` (namespace `HaalCentraal`, dimensie `Application`). Zo is te zien welke applicaties de headers nog niet sturen.
 
-Als alle applicaties de headers sturen: zet `requireRequestLogHeaders: true` voor de omgeving in `src/Configuration.ts` en deploy. Verzoeken zonder deze headers krijgen dan een `400`.
+Als alle applicaties de headers sturen: zet `enforceAuditLogHeaders: true` voor de omgeving in `src/Configuration.ts` en deploy. Verzoeken zonder deze headers krijgen dan een `400`.
