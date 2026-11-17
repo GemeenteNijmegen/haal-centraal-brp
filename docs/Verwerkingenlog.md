@@ -5,7 +5,7 @@ Elke bevraging van persoonsgegevens via deze koppeling wordt vastgelegd in een D
 Dit geldt voor alle persoon-endpoints: `/personen`, `/brp/personen`, `/partnerfilter/personen` en `/personen/burgerservicenummer/*`.
 
 ## Wat wordt vastgelegd
-Per bevraging wordt één record per betrokken persoon geschreven. Welke personen dat zijn:
+Per bevraging die personen oplevert wordt één record per betrokken persoon geschreven. Welke personen dat zijn:
 1. Staan er BSN's in het antwoord van Haal Centraal, dan de personen in het antwoord (`bron` is `antwoord`).
 2. Anders de BSN's waarnaar gevraagd is, in de body (`RaadpleegMetBurgerservicenummer`) of de `x-bsn` header (`bron` is `verzoek`).
 3. Anders wordt er niets vastgelegd en alleen een waarschuwing gelogd.
@@ -33,8 +33,7 @@ Er wordt nooit een BSN of API key opgeslagen.
 
 Niet vastgelegd:
 - Verzoeken die geweigerd worden voordat Haal Centraal bevraagd wordt (onbekende API key, velden die de applicatie niet mag opvragen). Er worden dan geen gegevens verstrekt.
-- Verzoeken waarop Haal Centraal een fout geeft. Er worden dan geen persoonsgegevens verstrekt.
-- Op `/partnerfilter/personen` en `/personen/burgerservicenummer/*`: verzoeken waarop geen persoon gevonden wordt (`404`). Op `/personen` en `/brp/personen` wordt een vraag naar BSN's zonder resultaat wel vastgelegd, met `bron` `verzoek`.
+- Verzoeken waarop Haal Centraal een fout geeft of geen personen teruggeeft. Er worden dan geen persoonsgegevens verstrekt.
 - Een zoekvraag zonder BSN (bijvoorbeeld op postcode) zonder `burgerservicenummer` in de opgevraagde velden: er is dan geen BSN om aan te koppelen.
 - Bij een vraag naar meerdere BSN's met `burgerservicenummer` in de velden: de BSN's die niet in het antwoord staan.
 
