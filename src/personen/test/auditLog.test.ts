@@ -337,6 +337,7 @@ describe('write', () => {
     it('throws when items stay unprocessed', async () => {
       ddbMock.on(BatchWriteItemCommand).resolves({ UnprocessedItems: unprocessed });
       await expect((await start()).write(bsns(1), ok({ personen: [] }))).rejects.toThrow('Could not write audit log');
+      expect(ddbMock.commandCalls(BatchWriteItemCommand)).toHaveLength(4);
     });
 
     it('throws when DynamoDB fails', async () => {
