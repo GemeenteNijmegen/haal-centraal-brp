@@ -12,6 +12,8 @@ Per bevraging die personen oplevert wordt één record per betrokken persoon ges
 
 Het antwoord bevat alleen BSN's als de applicatie het veld `burgerservicenummer` opvraagt. Bij een zoekvraag op bijvoorbeeld postcode en huisnummer zonder dat veld wordt de bevraging dus niet vastgelegd.
 
+Alleen geldige BSN's tellen mee: 9 cijfers die voldoen aan de elfproef. Andere waarden worden genegeerd.
+
 | Attribuut | Inhoud |
 |---|---|
 | `bsnHash` | HMAC-SHA256 van het BSN met de salt van de omgeving (partition key) |

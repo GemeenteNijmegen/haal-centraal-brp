@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { CloudWatchClient, PutMetricDataCommand, StandardUnit } from '@aws-sdk/client-cloudwatch';
 import { AttributeValue, BatchWriteItemCommand, DynamoDBClient, WriteRequest } from '@aws-sdk/client-dynamodb';
+import { Bsn } from '@gemeentenijmegen/utils';
 import { MissingAuditLogHeadersError } from './subset/errors/subset-errors';
 
 const cloudwatch = new CloudWatchClient({ region: 'eu-central-1' });
@@ -104,7 +105,7 @@ export class AuditLog {
 
   /**
    * BSNs a personen request searches for. Only RaadpleegMetBurgerservicenummer has them.
-   * Values that are not a 9 digit BSN are ignored, and at most 20 are taken.
+   * Values that are not a valid 9 digit BSN (elfproef) are ignored, and at most 20 are taken.
    * @param request Parsed personen request body
    * @returns BSNs from the request, empty for other search types
    */
@@ -114,7 +115,7 @@ export class AuditLog {
       return [];
     }
     return bsns
-      .filter(bsn => typeof bsn === 'string' && /^\d{9}$/.test(bsn))
+      .filter(bsn => typeof bsn === 'string' && isValidBsn(bsn))
       .slice(0, MAX_REQUESTED_BSNS);
   }
 
@@ -300,14 +301,21 @@ async function emitMissingHeadersMetric(application: string): Promise<void> {
 }
 
 /**
- * Distinct 9 digit BSNs, ignoring surrounding whitespace and any other value.
+ * Distinct valid 9 digit BSNs, ignoring surrounding whitespace and any other value.
  */
 function validBsns(values: unknown[]): string[] {
   const bsns = values
     .filter((value): value is string => typeof value === 'string')
     .map(bsn => bsn.trim())
-    .filter(bsn => /^\d{9}$/.test(bsn));
+    .filter(isValidBsn);
   return [...new Set(bsns)];
+}
+
+/**
+ * Haal Centraal always uses 9 digits, while Bsn.validate also accepts old 8 digit BSNs.
+ */
+function isValidBsn(bsn: string): boolean {
+  return /^\d{9}$/.test(bsn) && Bsn.validate(bsn).success;
 }
 
 function sleep(ms: number) {

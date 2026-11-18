@@ -1,6 +1,7 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { BatchWriteItemCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { Bsn } from '@gemeentenijmegen/utils';
 import { mockClient } from 'aws-sdk-client-mock';
 import { AuditLog } from '../auditLog';
 import { MissingAuditLogHeadersError } from '../subset/errors/subset-errors';
@@ -9,6 +10,19 @@ const cloudWatchMock = mockClient(CloudWatchClient);
 const ddbMock = mockClient(DynamoDBClient);
 
 const SALT = 'test-salt';
+
+/**
+ * The first `count` 9 digit numbers from 100000000 that pass the elfproef.
+ */
+function validBsns(count: number): string[] {
+  const bsns: string[] = [];
+  for (let n = 100000000; bsns.length < count; n++) {
+    if (Bsn.elfproef(String(n))) {
+      bsns.push(String(n));
+    }
+  }
+  return bsns;
+}
 // HMAC-SHA256('test-salt', '999971785'), also reproducible with: printf '999971785' | openssl dgst -sha256 -hmac 'test-salt'
 const HASH_999971785 = '3c909c6a01bc997a512c67730b15e961bcb8c64c8c72b8cae41af9bd7c16ecfa';
 
@@ -84,15 +98,15 @@ describe('AuditLog.requestedBsns', () => {
     expect(AuditLog.requestedBsns(undefined)).toEqual([]);
   });
 
-  it('ignores values that are not a 9 digit BSN', () => {
+  it('ignores values that are not a valid 9 digit BSN', () => {
     expect(AuditLog.requestedBsns({
       type: 'RaadpleegMetBurgerservicenummer',
-      burgerservicenummer: ['999971785', 999999333, ' 999999333', '12345', 'abcdefghi'],
+      burgerservicenummer: ['999971785', 999999333, ' 999999333', '12345', 'abcdefghi', '123456789', '12345678'],
     })).toEqual(['999971785']);
   });
 
   it('takes at most 20 BSNs, the Haal Centraal maximum', () => {
-    const bsns = Array.from({ length: 25 }, (_, i) => String(100000000 + i));
+    const bsns = validBsns(25);
     expect(AuditLog.requestedBsns({ type: 'RaadpleegMetBurgerservicenummer', burgerservicenummer: bsns })).toEqual(bsns.slice(0, 20));
   });
 });
@@ -245,8 +259,8 @@ describe('write', () => {
     ]);
   });
 
-  it('ignores response values that are not a 9 digit BSN', async () => {
-    await (await start()).write({ personen: [{ burgerservicenummer: '12345' }, { burgerservicenummer: 999999333 }] });
+  it('ignores response values that are not a valid 9 digit BSN', async () => {
+    await (await start()).write({ personen: [{ burgerservicenummer: '12345' }, { burgerservicenummer: 999999333 }, { burgerservicenummer: '123456789' }] });
     expect(bronnen()).toEqual([{ bsnHash: HASH_999971785, bron: 'verzoek' }]);
   });
 
@@ -280,18 +294,17 @@ describe('write', () => {
   });
 
   describe('batching', () => {
-    const bsns = (count: number) => Array.from({ length: count }, (_, i) => String(100000000 + i));
     const unprocessed = { AuditLogTable: [{ PutRequest: { Item: { bsnHash: { S: 'x' } } } }] };
 
     it('splits more than 25 persons into several batches', async () => {
-      await (await start(HEADERS, bsns(30))).write(PERSON_WITHOUT_BSN);
+      await (await start(HEADERS, validBsns(30))).write(PERSON_WITHOUT_BSN);
       const calls = ddbMock.commandCalls(BatchWriteItemCommand);
       expect(calls.map(call => call.args[0].input.RequestItems?.AuditLogTable?.length)).toEqual([25, 5]);
     });
 
     it('retries unprocessed items', async () => {
       ddbMock.on(BatchWriteItemCommand).resolvesOnce({ UnprocessedItems: unprocessed }).resolves({});
-      await (await start(HEADERS, bsns(2))).write(PERSON_WITHOUT_BSN);
+      await (await start(HEADERS, validBsns(2))).write(PERSON_WITHOUT_BSN);
 
       const calls = ddbMock.commandCalls(BatchWriteItemCommand);
       expect(calls).toHaveLength(2);
@@ -300,13 +313,13 @@ describe('write', () => {
 
     it('throws when items stay unprocessed', async () => {
       ddbMock.on(BatchWriteItemCommand).resolves({ UnprocessedItems: unprocessed });
-      await expect((await start(HEADERS, bsns(1))).write(PERSON_WITHOUT_BSN)).rejects.toThrow('Could not write audit log');
+      await expect((await start(HEADERS, validBsns(1))).write(PERSON_WITHOUT_BSN)).rejects.toThrow('Could not write audit log');
       expect(ddbMock.commandCalls(BatchWriteItemCommand)).toHaveLength(4);
     });
 
     it('throws when DynamoDB fails', async () => {
       ddbMock.on(BatchWriteItemCommand).rejects(new Error('DynamoDB down'));
-      await expect((await start(HEADERS, bsns(1))).write(PERSON_WITHOUT_BSN)).rejects.toThrow('DynamoDB down');
+      await expect((await start(HEADERS, validBsns(1))).write(PERSON_WITHOUT_BSN)).rejects.toThrow('DynamoDB down');
     });
   });
 });
