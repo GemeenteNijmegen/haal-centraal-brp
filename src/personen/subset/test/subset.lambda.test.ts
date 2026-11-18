@@ -1,7 +1,8 @@
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
-import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
+import { BatchWriteItemCommand, DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
+import { AuditLog } from '../../auditLog';
 import { callHaalCentraal } from '../../callHaalCentraal';
 import { SubsetHandlerFactory } from '../handlers/subset-handler-factory';
 
@@ -11,6 +12,7 @@ const fakedInitSecrets = {
   certCa: 'test-cert-ca',
   endpoint: 'https://test.endpoint',
   brpApiKey: 'test-brp-api-key',
+  bsnHashSalt: 'test-salt',
 };
 
 jest.mock('../../initSecrets', () => ({
@@ -54,10 +56,13 @@ describe('subset lambda handler', () => {
     ddbMock.reset();
     cloudWatchMock.reset();
     cloudWatchMock.on(PutMetricDataCommand).resolves({});
+    ddbMock.on(BatchWriteItemCommand).resolves({});
     SubsetHandlerFactory.clearCache();
 
     process.env.AWS_REGION = 'eu-central-1';
     process.env.ID_TABLE_NAME = 'TestTable';
+    process.env.AUDIT_LOG_TABLE_NAME = 'AuditLogTable';
+    delete process.env.ENFORCE_AUDIT_LOG_HEADERS;
   });
 
   // Validatefields dynamodb helper
@@ -80,6 +85,7 @@ describe('subset lambda handler', () => {
     apiKey?: string;
     apiKeyId?: string;
     clientCertPem?: string;
+    headers?: Record<string, string>;
   }
 
   // Event helper
@@ -91,7 +97,11 @@ describe('subset lambda handler', () => {
       clientCertPem,
     } = options;
 
-    const headers: any = {};
+    const headers: any = {
+      'x-gebruiker': 'medewerker-1',
+      'x-doelbinding': 'BRPACT-Totaal',
+      ...options.headers,
+    };
     if ('bsn' in options && options.bsn !== undefined) {
       headers['x-bsn'] = options.bsn;
     } else if (!('bsn' in options)) {
@@ -99,6 +109,8 @@ describe('subset lambda handler', () => {
     }
     return {
       requestContext: {
+        requestId: 'request-1',
+        requestTimeEpoch: Date.parse('2026-11-16T10:00:00.000Z'),
         identity: {
           apiKey,
           apiKeyId,
@@ -630,4 +642,105 @@ describe('subset lambda handler', () => {
     });
   });
 
+
+  describe('audit log', () => {
+    const writtenItems = () => ddbMock.commandCalls(BatchWriteItemCommand)
+      .flatMap(call => call.args[0].input.RequestItems?.AuditLogTable ?? [])
+      .map(request => request.PutRequest?.Item);
+
+    it('writes a record for the requested person', async () => {
+      setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
+      setupHaalCentraalResponse();
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(200);
+      expect(writtenItems()).toEqual([{
+        bsnHash: { S: AuditLog.hashBsn('999971785', 'test-salt') },
+        requestedAt: { S: '2026-11-16T10:00:00.000Z#request-1' },
+        requestId: { S: 'request-1' },
+        application: { S: 'ApiKeyTest' },
+        apiKeyId: { S: 'test-api-key-id' },
+        endpoint: { S: '/personen/burgerservicenummer/leeftijd' },
+        requestType: { S: 'subset:leeftijd' },
+        fields: { L: [{ S: 'burgerservicenummer' }, { S: 'leeftijd' }] },
+        bron: { S: 'antwoord' },
+        gebruiker: { S: 'medewerker-1' },
+        gebruikerHeader: { S: 'x-gebruiker' },
+        doelbinding: { S: 'BRPACT-Totaal' },
+        doelbindingHeader: { S: 'x-doelbinding' },
+      }]);
+    });
+
+    it('writes no record when the person is not found', async () => {
+      setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
+      mockCallHaalCentraal.mockResolvedValue({
+        statusCode: 200,
+        body: JSON.stringify({ type: 'RaadpleegMetBurgerservicenummer', personen: [] }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(404);
+      expect(writtenItems()).toHaveLength(0);
+    });
+
+    it('writes no record when Haal Centraal returns an error', async () => {
+      setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
+      mockCallHaalCentraal.mockResolvedValue({
+        statusCode: 400,
+        body: JSON.stringify({ title: 'Bad request' }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(400);
+      expect(writtenItems()).toHaveLength(0);
+    });
+
+    it('returns 500 without person data when the record cannot be written', async () => {
+      setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
+      setupHaalCentraalResponse();
+      ddbMock.on(BatchWriteItemCommand).rejects(new Error('DynamoDB down'));
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(500);
+      expect(result.body).not.toContain('leeftijd');
+    });
+
+    it('does not write a record when the profile does not allow the fields', async () => {
+      setupGetItemResponse(['burgerservicenummer'], 'ApiKeyTest');
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(403);
+      expect(writtenItems()).toHaveLength(0);
+    });
+
+    it('logs onbekend when headers are missing and not enforced', async () => {
+      setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
+      setupHaalCentraalResponse();
+
+      const result = await handler(createValidEvent({ headers: { 'x-gebruiker': '', 'x-doelbinding': '' } }));
+
+      expect(result.statusCode).toBe(200);
+      expect(writtenItems()[0]?.gebruiker).toEqual({ S: 'onbekend' });
+      expect(writtenItems()[0]?.doelbinding).toEqual({ S: 'onbekend' });
+    });
+
+    it('returns 400 when headers are missing and enforced', async () => {
+      process.env.ENFORCE_AUDIT_LOG_HEADERS = 'true';
+      setupGetItemResponse(['burgerservicenummer', 'leeftijd'], 'ApiKeyTest');
+      setupHaalCentraalResponse();
+
+      const result = await handler(createValidEvent({ headers: { 'x-doelbinding': '' } }));
+
+      expect(result.statusCode).toBe(400);
+      expect(mockCallHaalCentraal).not.toHaveBeenCalled();
+      expect(writtenItems()).toHaveLength(0);
+    });
+  });
 });

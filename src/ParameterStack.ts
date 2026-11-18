@@ -1,4 +1,4 @@
-import { Stack, StackProps, aws_secretsmanager as SecretsManager } from 'aws-cdk-lib';
+import { RemovalPolicy, Stack, StackProps, aws_secretsmanager as SecretsManager } from 'aws-cdk-lib';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { Statics } from './Statics';
@@ -32,5 +32,15 @@ export class ParameterStack extends Stack {
       secretName: Statics.certificateCa,
       description: 'Certificate CA haal centraal',
     });
+
+    const bsnHashSalt = new SecretsManager.Secret(this, 'bsn-hash-salt', {
+      secretName: Statics.bsnHashSalt,
+      description: 'Salt for hashing BSNs in the audit log, never rotate',
+      generateSecretString: {
+        passwordLength: 64,
+        excludePunctuation: true,
+      },
+    });
+    bsnHashSalt.applyRemovalPolicy(RemovalPolicy.RETAIN);
   }
 }

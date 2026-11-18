@@ -22,5 +22,8 @@ Nadat het verzoek van een applicatie is gevalideerd door de gateway wordt het ve
 
 Als het een valide verzoek is wordt deze doorgestuurd naar de Haal Centraal BRP API van het RvIG. De response die vervolgens wordt ontvangen wordt weer doorgestuurd naar de applicatie.
 
+#### Verwerkingenlog
+Elke bevraging die persoonsgegevens oplevert wordt per betrokken persoon vastgelegd in een DynamoDB-tabel, met een gehasht BSN, de applicatie, gebruiker, doelbinding en opgevraagde velden. Zie [Verwerkingenlog](./Verwerkingenlog.md).
+
 #### Certificaten lambda
 Zodra een nieuwe applicatie wordt aangesloten en een certificaat wordt toegevoegd aan de certificate storage wordt de certificaten lambda afgetrapt. De lambda verzamelt alle certifcaten uit de certificate storage en bundeld deze tot een groot bestand. Dit bestand wordt vervolgens geupload naar de truststore als nieuwe versie. De custom domain wordt op de hoogte gesteld dat deze nieuwe versie nu in gebruik genomen moet worden.

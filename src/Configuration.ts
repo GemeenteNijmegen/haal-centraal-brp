@@ -54,6 +54,14 @@ export interface Configuration {
    */
   tracing?: boolean;
 
+  /**
+   * Reject requests without a gebruiker or doelbinding header
+   *
+   * When false, missing values are logged as 'onbekend' and reported
+   * with the MissingAuditLogHeaders metric.
+   */
+  enforceAuditLogHeaders?: boolean;
+
 }
 
 
@@ -64,6 +72,7 @@ const EnvironmentConfigurations: { [key: string]: Configuration } = {
     deploymentEnvironment: Statics.gnHaalCentraalBrpDevEnvironment,
     devMode: true,
     tracing: true,
+    enforceAuditLogHeaders: false,
   },
   acceptance: {
     branch: 'acceptance',
@@ -71,6 +80,7 @@ const EnvironmentConfigurations: { [key: string]: Configuration } = {
     deploymentEnvironment: Statics.gnHaalCentraalBrpAccpEnvironment,
     devMode: false,
     tracing: true,
+    enforceAuditLogHeaders: false,
   },
   main: {
     branch: 'main',
@@ -78,6 +88,7 @@ const EnvironmentConfigurations: { [key: string]: Configuration } = {
     deploymentEnvironment: Statics.gnHaalCentraalBrpProdEnvironment,
     devMode: false,
     tracing: true,
+    enforceAuditLogHeaders: false,
   },
 };
 

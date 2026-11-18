@@ -35,4 +35,10 @@ export class Statics {
   static readonly certificate: string = '/cdk/haal-centraal-brp/certificate';
   static readonly certificateKey: string = '/cdk/haal-centraal-brp/certificate-key';
   static readonly certificateCa: string = '/cdk/haal-centraal-brp/certificate-ca';
+
+  /**
+   * Salt used to hash BSNs in the audit log. Never rotate: existing records can only
+   * be found with the salt they were written with.
+   */
+  static readonly bsnHashSalt: string = '/cdk/haal-centraal-brp/bsn-hash-salt';
 }

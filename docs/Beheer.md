@@ -48,3 +48,10 @@ Beheerder upload certificaat, inclusief eventuele chain (in tekst formaat, achte
 
 Zodra een nieuw object (certificaat) naar de certificate storage wordt geupload zal de certificate lambda automatisch eenn nieuwe versie van de truststore klaarzetten, inclusief het nieuwe certificaat van de applicatie. Hier heeft de beheerder geen omkijken naar. De nieuwe truststore zal vrijwel direct klaar staan.
 
+## Verwerkingenlog
+Hoe het verwerkingenlog werkt en hoe je zoekt op BSN staat in [Verwerkingenlog](./Verwerkingenlog.md).
+
+### Headers verplicht maken
+Standaard worden verzoeken zonder gebruiker- of doelbindingheader nog verwerkt. Ze worden gelogd met `onbekend` en tellen mee in de CloudWatch metric `MissingAuditLogHeaders` (namespace `HaalCentraal`, dimensie `Application`). Zo is te zien welke applicaties de headers nog niet sturen.
+
+Als alle applicaties de headers sturen: zet `enforceAuditLogHeaders: true` voor de omgeving in `src/Configuration.ts` en deploy. Verzoeken zonder deze headers krijgen dan een `400`.

@@ -2,6 +2,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import type { Subsegment } from 'aws-xray-sdk-core';
+import { AuditLog } from '../auditLog';
 import { callHaalCentraal } from '../callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from '../certBinding';
 import { PersonenSecrets, initSecrets } from '../initSecrets';
@@ -86,6 +87,14 @@ export async function handler(
       throw new InvalidApplicationProfileError(originalFields);
     }
 
+    const auditLog = await AuditLog.start(event, {
+      application: profileName,
+      requestType: request.type ?? 'unknown',
+      fields: originalFields,
+      salt: secrets.bsnHashSalt,
+      requestBsns: AuditLog.requestedBsns(request),
+    });
+
     const hasPartnerFields = originalFields.some(
       (f) => f === 'partners' || f.startsWith('partners.'),
     );
@@ -110,6 +119,8 @@ export async function handler(
     const filteredData = hasPartnerFields
       ? filterDissolvedPartners(data)
       : data;
+
+    await auditLog.write(data);
 
     return {
       statusCode: result.statusCode,

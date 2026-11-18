@@ -1,9 +1,12 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Subsegment } from 'aws-xray-sdk-core';
+import { AuditLog } from './auditLog';
 import { callHaalCentraal } from './callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from './certBinding';
 import { initSecrets, PersonenSecrets } from './initSecrets';
+import { createErrorResponse } from './subset/errors/error-response';
+import { SubsetError } from './subset/errors/subset-errors';
 import { getApplicationProfile, validateFields } from './validateFields';
 
 let secrets: PersonenSecrets;
@@ -59,8 +62,20 @@ export async function handler(event: any): Promise<any> {
     const validProfile = validateFields(request.fields, profile.fields);
 
     if (validProfile) {
-      // Search...
-      return await callHaalCentraal(event.body, secrets); // in aparte file zetten
+      const auditLog = await AuditLog.start(event, {
+        application: profile.name,
+        requestType: request.type ?? 'unknown',
+        fields: request.fields,
+        salt: secrets.bsnHashSalt,
+        requestBsns: AuditLog.requestedBsns(request),
+      });
+
+      const result = await callHaalCentraal(event.body, secrets);
+
+      if (result.statusCode >= 200 && result.statusCode < 300) {
+        await auditLog.write(parseJson(result.body));
+      }
+      return result;
     } else {
       return {
         statusCode: '403', //Forbidden
@@ -69,6 +84,9 @@ export async function handler(event: any): Promise<any> {
       };
     }
   } catch (error) {
+    if (error instanceof SubsetError) {
+      return createErrorResponse(error, logger);
+    }
     console.error(error);
     return {
       statusCode: 500,
@@ -82,5 +100,13 @@ export async function handler(event: any): Promise<any> {
       // Set back the facade segment as active again
       tracer?.setSegment(segment);
     }
+  }
+}
+
+function parseJson(body: string): any {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return undefined;
   }
 }

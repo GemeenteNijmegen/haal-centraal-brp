@@ -3,6 +3,7 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { Bsn } from '@gemeentenijmegen/utils';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import type { Subsegment } from 'aws-xray-sdk-core';
+import { AuditLog } from '../auditLog';
 import { callHaalCentraal } from '../callHaalCentraal';
 import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from '../certBinding';
 import { initSecrets, PersonenSecrets } from '../initSecrets';
@@ -72,8 +73,20 @@ export async function handler(event: APIGatewayProxyEvent): Promise<APIGatewayPr
       throw new InvalidApplicationProfileError(fields);
     }
 
-    const { persoon, result } = await getPersonHaalCentraal(fields, bsn);
+    const auditLog = await AuditLog.start(event, {
+      application: profileName,
+      requestType: `subset:${endpoint}`,
+      fields,
+      salt: secrets.bsnHashSalt,
+      requestBsns: [bsn],
+    });
+
+    const result = await callHaalCentraal(requestJsonBody(fields, [bsn]), secrets);
+
+    const { data, persoon } = getPerson(result);
     const responseBody = subsetHandler.processResponse(persoon);
+
+    await auditLog.write(data);
 
     return {
       statusCode: result.statusCode,
@@ -102,10 +115,7 @@ function getProfileName( profile: { fields: string[]; name: string; fingerprints
   return profileName;
 }
 
-async function getPersonHaalCentraal(fields: string[], bsn: string) {
-  const body = requestJsonBody(fields, [bsn]);
-  const result = await callHaalCentraal(body, secrets);
-
+function getPerson(result: { statusCode: number; body: string }) {
   // Check eerst of de status code in de 200 range zit
   if (result.statusCode < 200 || result.statusCode >= 300) {
     throw new HaalCentraalError(result.statusCode, result.body);
@@ -115,8 +125,7 @@ async function getPersonHaalCentraal(fields: string[], bsn: string) {
   if (!data?.personen?.[0] || !data?.personen?.[0].burgerservicenummer) {
     throw new NoPersonDataError();
   }
-  const persoon = data.personen[0];
-  return { persoon, result };
+  return { data, persoon: data.personen[0] };
 }
 
 function requestJsonBody(fields: string[], bsn: string[]): string {

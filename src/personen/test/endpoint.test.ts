@@ -21,6 +21,7 @@ describe('callHaalCentraal', () => {
       certCa: process.env.CERTIFICATE_CA!,
       endpoint: process.env.LAYER7_ENDPOINT!,
       brpApiKey: process.env.BRP_API_KEY_ARN!,
+      bsnHashSalt: 'test-salt',
     };
 
     const content = JSON.stringify({ key: 'value' });

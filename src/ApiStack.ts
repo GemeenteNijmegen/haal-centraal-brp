@@ -6,13 +6,13 @@ import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { Rule, Schedule } from 'aws-cdk-lib/aws-events';
 import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { ManagedPolicy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { ApplicationLogLevel, LoggingFormat, SystemLogLevel, Tracing } from 'aws-cdk-lib/aws-lambda';
+import { ApplicationLogLevel, Function, LoggingFormat, SystemLogLevel, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { S3EventSourceV2 } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { ARecord, RecordTarget } from 'aws-cdk-lib/aws-route53';
 import { ApiGateway } from 'aws-cdk-lib/aws-route53-targets';
 import { Bucket, EventType } from 'aws-cdk-lib/aws-s3';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
-import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
+import { ISecret, Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { StringParameter } from 'aws-cdk-lib/aws-ssm';
 import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib/core';
 import { Construct } from 'constructs';
@@ -44,6 +44,7 @@ export class ApiStack extends Stack {
     });
 
     const idTable = this.appIdStorage();
+    const auditLogTable = this.auditLogStorage();
     const cert = this.cert();
     const truststore = this.trustStore();
     const environmentVariables = this.environmentVariables();
@@ -54,6 +55,9 @@ export class ApiStack extends Stack {
     const personenFunction = this.personenFunction(idTable, environmentVariables, props.configuration.devMode);
     const subsetPersonenFunction = this.subsetPersonenFunction(idTable, environmentVariables, props.configuration.devMode);
     const partnerFilterPersonenFunction = this.partnerFilterPersonenFunction(idTable, environmentVariables, props.configuration.devMode);
+    for (const requestFunction of [personenFunction, subsetPersonenFunction, partnerFilterPersonenFunction]) {
+      this.addAuditLog(requestFunction, auditLogTable, environmentVariables.bsnHashSalt);
+    }
 
     const lambdaIntegration = new LambdaIntegration(personenFunction);
     resource.addMethod('POST', lambdaIntegration, {
@@ -142,6 +146,14 @@ export class ApiStack extends Stack {
     dailyRule.addTarget(new LambdaFunction(certmetricsFunction));
 
     this.createCloudWatchAlarms(personenFunction, certificateFunction, certmetricsFunction);
+    new ErrorMonitoringAlarm(this, 'subset-personen-function-error-monitoring-alarm', {
+      lambda: subsetPersonenFunction,
+      criticality: 'high',
+    });
+    new ErrorMonitoringAlarm(this, 'partner-filter-personen-function-error-monitoring-alarm', {
+      lambda: partnerFilterPersonenFunction,
+      criticality: 'high',
+    });
 
   }
 
@@ -159,6 +171,7 @@ export class ApiStack extends Stack {
       certificate: Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-secret', Statics.certificate),
       certificateKey: Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-key-secret', Statics.certificateKey),
       certificateCa: Secret.fromSecretNameV2(this, 'brp-haal-centraal-certificate-ca-secret', Statics.certificateCa),
+      bsnHashSalt: Secret.fromSecretNameV2(this, 'brp-haal-centraal-bsn-hash-salt-secret', Statics.bsnHashSalt),
     };
 
     return env;
@@ -387,6 +400,37 @@ export class ApiStack extends Stack {
     });
 
     return appIdStorage;
+  }
+
+  /**
+   * Audit log of every request for person data, kept for accountability (AVG).
+   * One record per person per request, keyed by the hashed BSN and sorted by time.
+   * Records are kept indefinitely.
+   * @returns Audit log table
+   */
+  private auditLogStorage() {
+    return new Table(this, 'audit-log', {
+      partitionKey: { name: 'bsnHash', type: AttributeType.STRING },
+      sortKey: { name: 'requestedAt', type: AttributeType.STRING },
+      billingMode: BillingMode.PAY_PER_REQUEST,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      deletionProtection: true,
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+  }
+
+  /**
+   * Give a request lambda what it needs to write the audit log.
+   * @param requestFunction Lambda handling person requests
+   * @param auditLogTable Audit log table
+   * @param bsnHashSalt Secret containing the BSN hash salt
+   */
+  private addAuditLog(requestFunction: Function, auditLogTable: Table, bsnHashSalt: ISecret) {
+    requestFunction.addEnvironment('AUDIT_LOG_TABLE_NAME', auditLogTable.tableName);
+    requestFunction.addEnvironment('BSN_HASH_SALT_ARN', bsnHashSalt.secretArn);
+    requestFunction.addEnvironment('ENFORCE_AUDIT_LOG_HEADERS', this.configuration.enforceAuditLogHeaders ? 'true' : 'false');
+    auditLogTable.grant(requestFunction, 'dynamodb:BatchWriteItem');
+    bsnHashSalt.grantRead(requestFunction);
   }
 
   /**

@@ -1,6 +1,8 @@
 import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
+import { BatchWriteItemCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { APIGatewayProxyEvent } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
+import { AuditLog } from '../../auditLog';
 import { callHaalCentraal } from '../../callHaalCentraal';
 import { getApplicationProfile, validateFields } from '../../validateFields';
 
@@ -10,6 +12,7 @@ const fakedInitSecrets = {
   certCa: 'test-cert-ca',
   endpoint: 'https://test.endpoint',
   brpApiKey: 'test-brp-api-key',
+  bsnHashSalt: 'test-salt',
 };
 
 jest.mock('../../initSecrets', () => ({
@@ -41,6 +44,7 @@ const mockValidateFields = validateFields as jest.MockedFunction<
 >;
 
 const cloudWatchMock = mockClient(CloudWatchClient);
+const ddbMock = mockClient(DynamoDBClient);
 
 // A static, parseable self-signed client certificate used as a fixture for binding tests.
 const CLIENT_CERT_PEM = `-----BEGIN CERTIFICATE-----
@@ -70,8 +74,12 @@ describe('partner filter lambda handler', () => {
     mockValidateFields.mockReset();
     cloudWatchMock.reset();
     cloudWatchMock.on(PutMetricDataCommand).resolves({});
+    ddbMock.reset();
+    ddbMock.on(BatchWriteItemCommand).resolves({});
 
     delete process.env.TRACING_ENABLED;
+    delete process.env.ENFORCE_AUDIT_LOG_HEADERS;
+    process.env.AUDIT_LOG_TABLE_NAME = 'AuditLogTable';
 
     mockGetApplicationProfile.mockResolvedValue({
       name: 'ApiKeyTest',
@@ -86,6 +94,7 @@ describe('partner filter lambda handler', () => {
     apiKeyId?: string;
     body?: Record<string, unknown>;
     clientCertPem?: string;
+    headers?: Record<string, string>;
   }
 
   const createValidEvent = (
@@ -107,7 +116,14 @@ describe('partner filter lambda handler', () => {
       httpMethod: 'POST',
       path: '/partnerfilter/personen',
       resource: '/partnerfilter/personen',
+      headers: {
+        'x-gebruiker': 'medewerker-1',
+        'x-doelbinding': 'BRPACT-Totaal',
+        ...options.headers,
+      },
       requestContext: {
+        requestId: 'request-1',
+        requestTimeEpoch: Date.parse('2026-11-16T10:00:00.000Z'),
         identity: {
           apiKey,
           apiKeyId,
@@ -117,7 +133,7 @@ describe('partner filter lambda handler', () => {
         path: '/partnerfilter/personen',
         resourcePath: '/partnerfilter/personen',
       },
-    } as APIGatewayProxyEvent;
+    } as unknown as APIGatewayProxyEvent;
   };
 
   interface MockHaalCentraalOptions {
@@ -783,6 +799,111 @@ describe('partner filter lambda handler', () => {
 
       expectJsonErrorResponse(result as any, 500);
       expect(mockCallHaalCentraal).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('handler - audit log', () => {
+    const writtenItems = () => ddbMock.commandCalls(BatchWriteItemCommand)
+      .flatMap(call => call.args[0].input.RequestItems?.AuditLogTable ?? [])
+      .map(request => request.PutRequest?.Item);
+
+    it('writes a record with the client requested fields', async () => {
+      const requestBody = {
+        type: 'RaadpleegMetBurgerservicenummer',
+        burgerservicenummer: ['999971785'],
+        fields: ['naam.volledigeNaam', 'partners'],
+      };
+      setupApplicationProfile(requestBody.fields);
+      setupHaalCentraalResponse();
+
+      const result = await handler(createValidEvent({ body: requestBody }));
+
+      expect(result.statusCode).toBe(200);
+      expect(writtenItems()).toEqual([expect.objectContaining({
+        bsnHash: { S: AuditLog.hashBsn('999971785', 'test-salt') },
+        endpoint: { S: '/partnerfilter/personen' },
+        requestType: { S: 'RaadpleegMetBurgerservicenummer' },
+        fields: { L: [{ S: 'naam.volledigeNaam' }, { S: 'partners' }] },
+        bron: { S: 'antwoord' },
+        gebruiker: { S: 'medewerker-1' },
+        doelbinding: { S: 'BRPACT-Totaal' },
+      })]);
+    });
+
+    it('logs the persons found by a search on other data without changing the request or response', async () => {
+      const requestBody = {
+        type: 'ZoekMetPostcodeEnHuisnummer',
+        postcode: '6511PP',
+        huisnummer: 1,
+        fields: ['burgerservicenummer', 'naam.volledigeNaam'],
+      };
+      setupApplicationProfile(requestBody.fields);
+      setupHaalCentraalResponse();
+
+      const result = await handler(createValidEvent({ body: requestBody }));
+
+      expect(getForwardedRequestBody()).toEqual(requestBody);
+      expect(JSON.parse(result.body)).toEqual({
+        personen: [{ burgerservicenummer: '999971785', naam: { volledigeNaam: "Sem van 't Hul" } }],
+      });
+      expect(writtenItems()).toEqual([expect.objectContaining({
+        bsnHash: { S: AuditLog.hashBsn('999971785', 'test-salt') },
+        bron: { S: 'antwoord' },
+      })]);
+    });
+
+    it('logs the requested BSN when the response has no BSN', async () => {
+      setupApplicationProfile(['naam.volledigeNaam']);
+      setupHaalCentraalResponse({ responseData: { personen: [{ naam: { volledigeNaam: "Sem van 't Hul" } }] } });
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(200);
+      expect(writtenItems()).toEqual([expect.objectContaining({
+        bsnHash: { S: AuditLog.hashBsn('999971785', 'test-salt') },
+        bron: { S: 'verzoek' },
+      })]);
+    });
+
+    it('writes no record when the person is not found', async () => {
+      setupApplicationProfile(['naam.volledigeNaam']);
+      setupHaalCentraalResponse({ responseData: { personen: [] } });
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(404);
+      expect(writtenItems()).toHaveLength(0);
+    });
+
+    it('writes no record when Haal Centraal returns an error', async () => {
+      setupApplicationProfile(['naam.volledigeNaam']);
+      setupHaalCentraalResponse({ statusCode: 503, responseData: { error: 'upstream unavailable' } });
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(503);
+      expect(writtenItems()).toHaveLength(0);
+    });
+
+    it('returns 500 without person data when the record cannot be written', async () => {
+      setupApplicationProfile(['naam.volledigeNaam']);
+      setupHaalCentraalResponse();
+      ddbMock.on(BatchWriteItemCommand).rejects(new Error('DynamoDB down'));
+
+      const result = await handler(createValidEvent());
+
+      expect(result.statusCode).toBe(500);
+      expect(result.body).not.toContain('volledigeNaam');
+    });
+
+    it('returns 400 when headers are missing and enforced', async () => {
+      process.env.ENFORCE_AUDIT_LOG_HEADERS = 'true';
+      setupApplicationProfile(['naam.volledigeNaam']);
+
+      const result = await handler(createValidEvent({ headers: { 'x-doelbinding': '' } }));
+
+      expect(result.statusCode).toBe(400);
+      expect(mockCallHaalCentraal).not.toHaveBeenCalled();
     });
   });
 });
