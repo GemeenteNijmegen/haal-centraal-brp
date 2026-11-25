@@ -2,6 +2,7 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import type { Subsegment } from 'aws-xray-sdk-core';
 import { callHaalCentraal } from './callHaalCentraal';
+import { checkCertificateBinding, computeClientCertFingerprint, extractClientCertPem } from './certBinding';
 import { initSecrets, PersonenSecrets } from './initSecrets';
 import { getApplicationProfile, validateFields } from './validateFields';
 
@@ -43,6 +44,16 @@ export async function handler(event: any): Promise<any> {
     logger.info('Request info', {
       application: profile.name,
       type: request.type,
+    });
+
+    // LOG-ONLY certificate-to-API-key binding check.
+    const clientCertPem = extractClientCertPem(event);
+    const fingerprint = computeClientCertFingerprint(clientCertPem);
+    await checkCertificateBinding({
+      fingerprint,
+      allowedFingerprints: profile.fingerprints,
+      profileName: profile.name,
+      apiKeyId,
     });
 
     const validProfile = validateFields(request.fields, profile.fields);

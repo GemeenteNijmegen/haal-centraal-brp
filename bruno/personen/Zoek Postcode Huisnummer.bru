@@ -1,0 +1,57 @@
+meta {
+  name: Zoek Postcode Huisnummer
+  type: http
+  seq: 2
+}
+
+post {
+  url: https://{{baseUrl}}/personen
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-API-KEY: {{apiKey}}
+}
+
+body:json {
+  {
+    "type": "ZoekMetPostcodeEnHuisnummer",
+    "postcode": "{{postcode}}",
+    "huisnummer": {{huisnummer}},
+    "fields": [
+      "naam",
+      "geslacht",
+      "geboorte.datum"
+    ]
+  }
+}
+
+docs {
+  # Zoek met postcode en huisnummer (woningkaart)
+  
+  Zoekt de huidige bewoners van een adres op postcode + huisnummer.
+  Dit zoektype levert een BEPERKT persoonsbeeld (PersoonBeperkt).
+  
+  Let op de veldnamen voor dit zoektype:
+  - Adres zit in `adressering` (adresregel1/adresregel2), NIET in
+    `verblijfplaatsBinnenland`.
+  - `leeftijd` en `verblijfplaatsBinnenland` bestaan niet in het beperkte
+    persoonsbeeld.
+  
+  ## Datum ingang (optioneel testen)
+  De ingangsdatum van het adres (`datumAanvangAdreshouding`) zit in het
+  VOLLEDIGE verblijfplaats-object en is niet zeker beschikbaar bij dit
+  zoektype. Wil je dat verifiëren tegen acceptatie, voeg dan tijdelijk
+  "verblijfplaatsBinnenland.datumAanvangAdreshouding" (of
+  "verblijfplaats.datumVan") toe aan fields en kijk of er iets terugkomt.
+  Dit vereist dat het profiel/de API-key voor dat veld geautoriseerd is.
+  
+  ## Optionele zoekparameters
+  Om de zoekopdracht aan te scherpen kun je toevoegen:
+  - "huisletter"
+  - "huisnummertoevoeging"
+  - "gemeenteVanInschrijving"
+  - "inclusiefOverledenPersonen": true  (nodig om overledenen te vinden)
+}
