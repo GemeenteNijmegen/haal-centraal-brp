@@ -31,5 +31,6 @@ export async function getApplicationProfile(apiKey: string) {
   return {
     fields: data.Item?.fields.SS ?? [],
     name: data.Item?.name.S ?? 'Unknown',
+    fingerprints: data.Item?.certFingerprintsSha256?.SS ?? [],
   };
 }
